@@ -54,7 +54,7 @@ train_dataloader:
 
 val_dataloader:
   # batch_size: 2
-  batch_size: 16
+  batch_size: 8
   num_workers: 4
   persistent_workers: true
   sampler:

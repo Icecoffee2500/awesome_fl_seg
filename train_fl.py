@@ -1,4 +1,5 @@
 from pathlib import Path
+import copy
 import torch
 from segmentation.datasets.cityscapes import CityscapesDataset
 import hydra
@@ -6,18 +7,58 @@ from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader
 # import segmentation_models_pytorch as smp
 from segmentation_models_pytorch import Segformer
-from utils import save_data, print_keys
+from utils import save_data, print_keys, set_seed
 from evaluate import evaluate
 from segmentation.optimizer import build_optimizer
 from segmentation.scheduler import build_epoch_scheduler
+import wandb
+from datetime import datetime
+import torch.nn.functional as F
+from functools import partial
 
 ROOT = Path.cwd()
 
-def train_one_epoch(model, optimizer, criterion, train_loader, device, epoch):
+# Federated averaging: FedAvg
+def fed_avg(weights: list, num_samples: list = None):
+    if num_samples is None:
+        num_samples = [1 for _ in range(len(weights))]
+    # print(f"num_samples = {num_samples}")
+    w_avg = {k: torch.zeros_like(v) for k, v in weights[0].items()}  # OrderedDict에서 각 텐서를 사용하여 초기화
+    
+    for k in w_avg.keys():
+        for i in range(len(weights)):
+            w_avg[k] += weights[i][k].detach() * num_samples[i]
+        w_avg[k] = torch.div(w_avg[k], sum(num_samples))
+    return w_avg
+
+def aggregate(weights, num_samples=None):
+    aggregation = partial(fed_avg, num_samples=num_samples)
+    
+    w_glob_client = aggregation(weights) # 각 client에서 update된 weight를 받아서 FedAvg로 합쳐줌.
+    print(f"\n>>> Fed Server: Weights are aggregated.\n")
+    
+    return w_glob_client
+
+def train_one_epoch_fl(model, optimizer, criterion, train_loader, device, curr_epoch, max_epochs, client_idx):
     model.train()
     epoch_loss = 0.0
+    iter_start_time = datetime.now()
+
+    # client별 target resolution 설정
+    target_resolutions = {
+        0: (1024, 1024),
+        1: (768, 768),
+        2: (512, 512)
+    }
+    target_h, target_w = target_resolutions.get(client_idx, (1024, 1024))
 
     for idx, (inputs, masks, img_infos) in enumerate(train_loader):
+        # client별 resolution으로 resize
+        if (inputs.shape[2], inputs.shape[3]) != (target_h, target_w):
+            inputs = F.interpolate(inputs, size=(target_h, target_w), mode='bilinear', align_corners=False)
+            masks = F.interpolate(masks.float(), size=(target_h, target_w), mode='nearest').long()
+        # print(inputs.shape)
+        # print(masks.shape)
         inputs = inputs.to(device)
         # masks = masks.to(device)
         masks = masks.to(device).squeeze(1)  # [B, H, W]
@@ -33,7 +74,13 @@ def train_one_epoch(model, optimizer, criterion, train_loader, device, epoch):
         epoch_loss += loss.item()
 
         if idx % 50 == 0:
-            print(f"Epoch [{epoch+1}/10][{idx}/{len(train_loader)}]: Loss: {loss.item():.4f}")
+            elapsed = datetime.now() - iter_start_time
+            minutes, seconds = divmod(elapsed.total_seconds(), 60)
+            print(f"Client {client_idx+1} | Epoch [{curr_epoch+1}/{max_epochs}][{idx}/{len(train_loader)}]: "
+                f"Current Loss: {loss.item():.4f} | Elapsed Time: {int(minutes)}m {seconds:.2f}s")
+
+            # print(f"Epoch [{curr_epoch+1}/{max_epochs}][{idx}/{len(train_loader)}]: Loss: {loss.item():.4f} | Time: {datetime.now() - epoch_start_time:.2f}s")
+            iter_start_time = datetime.now()
     
     return epoch_loss / len(train_loader)
 
@@ -41,6 +88,23 @@ def train_one_epoch(model, optimizer, criterion, train_loader, device, epoch):
 def main(cfg:DictConfig) -> None:
     # print(OmegaConf.to_yaml(cfg, resolve=True))
     # config = OmegaConf.to_container(cfg, resolve=True) # dict로 변환 (resolve=True: 참조 해결)
+    
+    now = datetime.now()
+    today = now.strftime("%m%d_%H:%M")
+    
+    name = "train_fl"
+    name += f"{cfg.dataset.name}_bs{cfg.dataset.train_dataloader.batch_size}"
+    name += f"_{today}"
+    wdb = wandb
+    wdb.init(
+        config=OmegaConf.to_container(cfg, resolve=True),
+        project="Segmentation training (FL)",
+        name = name,
+    )
+
+    # Set random seed for reproducibility from the main entrypoint
+    seed = 42
+    set_seed(seed)
 
     # 데이터셋 로드
     train_dataset = CityscapesDataset(
@@ -50,6 +114,25 @@ def main(cfg:DictConfig) -> None:
         target_type=cfg.dataset.target_type,
         pipeline_cfg=cfg.dataset.train_pipeline,
     )
+
+    # train_dataset 길이
+    dataset_len = len(train_dataset)
+
+    # 클라이언트 수
+    num_clients = 3
+
+    # 각 클라이언트 dataset 길이 계산
+    split_len = dataset_len // num_clients
+    lengths = [split_len] * (num_clients - 1)
+    lengths.append(dataset_len - sum(lengths))  # 나머지는 마지막에
+
+    # dataset 나누기
+    client_datasets = torch.utils.data.random_split(train_dataset, lengths)
+
+    # 사용 예시
+    # client1_dataset = client_datasets[0]
+    # client2_dataset = client_datasets[1]
+    # client3_dataset = client_datasets[2]
     
     val_dataset = CityscapesDataset(
         root=cfg.dataset.data_root,
@@ -60,12 +143,23 @@ def main(cfg:DictConfig) -> None:
     )
 
     # 데이터로더 설정
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=cfg.dataset.train_dataloader.batch_size,
-        shuffle=cfg.dataset.train_dataloader.sampler.shuffle,
-        num_workers=cfg.dataset.train_dataloader.num_workers,
-        pin_memory=True,
+    # train_loader = DataLoader(
+    #     train_dataset,
+    #     batch_size=cfg.dataset.train_dataloader.batch_size,
+    #     shuffle=cfg.dataset.train_dataloader.sampler.shuffle,
+    #     num_workers=cfg.dataset.train_dataloader.num_workers,
+    #     pin_memory=True,
+    # )
+    train_loaders = []
+    for i in range(num_clients):
+        train_loaders.append(
+                DataLoader(
+                client_datasets[i],
+                batch_size=cfg.dataset.train_dataloader.batch_size,
+                shuffle=cfg.dataset.train_dataloader.sampler.shuffle,
+                num_workers=cfg.dataset.train_dataloader.num_workers,
+                pin_memory=True,
+            )
     )
     
     valid_loader = DataLoader(
@@ -77,11 +171,12 @@ def main(cfg:DictConfig) -> None:
     )
 
     # 모델 로드
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = "cuda:1" if torch.cuda.is_available() else "cpu"
+    # device = "cuda" if torch.cuda.is_available() else "cpu"
     # checkpoint = "smp-hub/segformer-b0-1024x1024-city-160k"
     # model = smp.from_pretrained(checkpoint).to(device)
     
-    model = Segformer(
+    global_model = Segformer(
         encoder_name="mit_b0",            # MiT-B0
         encoder_weights="imagenet",       # ImageNet pretrained
         decoder_channels=256,             # decoder 내부 채널
@@ -89,26 +184,80 @@ def main(cfg:DictConfig) -> None:
         classes=19,                       # Cityscapes 클래스 수
         encoder_output_stride=32          # stage 0~3 출력 stride 설정 (smp 기본값)
     )
-    model.to(device)
+    global_model.to(device)
 
     # optimizer, scheduler, criterion 설정
-    optimizer = build_optimizer(model, cfg.optimizer)
-    scheduler = build_epoch_scheduler(optimizer, cfg.scheduler)
+    # global_optimizer = build_optimizer(global_model, cfg.optimizer)
+    # scheduler = build_epoch_scheduler(global_optimizer, cfg.scheduler)
     criterion = torch.nn.CrossEntropyLoss(ignore_index=255)
+
+    model_list = []
+    optimizer_list = []
+    scheduler_list = []
+    for i in range(3):
+        model = copy.deepcopy(global_model)
+        model.to(device)
+        model_list.append(model)
+        optimizer = build_optimizer(model, cfg.optimizer)
+        optimizer_list.append(optimizer)
+        scheduler_list.append(build_epoch_scheduler(optimizer, cfg.scheduler))
 
     # evaluation
     preds_dir = ROOT / "predictions"  # 예측 파일 저장 경로
     preds_dir.mkdir(parents=True, exist_ok=True)
 
+    best_performance = 0.0
+    perf_dir = ROOT / "performance"
+    perf_dir.mkdir(parents=True, exist_ok=True)
+
     # train
+    loss_list = []
+    client_weights = []
     for epoch in range(cfg.trainer.epochs):
-        train_loss = train_one_epoch(model, optimizer, criterion, train_loader, device, epoch)
-        print(f"Epoch [{epoch+1}/{cfg.trainer.epochs}]: Loss: {train_loss:.4f}")
-        scheduler.step()
+        epoch_start_time = datetime.now()
+
+        for i, (model, optimizer, train_loader) in enumerate(zip(model_list, optimizer_list, train_loaders)):
+            train_loss = train_one_epoch_fl(
+                model, optimizer, criterion, train_loader, device, epoch, cfg.trainer.epochs, client_idx=i
+            )
+            loss_list.append(train_loss)
+            client_weights.append(model.state_dict())
+        
+        # aggregate weights
+        print(f">>> load Fed-Averaged weight to the proxy client model ...")
+        w_glob_client = aggregate(client_weights)
+
+        # Braadcast weight to each clients
+        print(f">>> load Fed-Averaged weight to the each client model ...")
+        for model in model_list:
+            model.load_state_dict(w_glob_client)
+        
+        global_model.load_state_dict(w_glob_client)
+
+        elapsed = datetime.now() - epoch_start_time
+        minutes, seconds = divmod(elapsed.total_seconds(), 60)
+
+        print(f"Epoch [{epoch+1}/{cfg.trainer.epochs}]: Epoch Loss: {train_loss:.4f} | Elapsed Time: {int(minutes)}m {seconds:.2f}s")
+        for scheduler in scheduler_list:
+            scheduler.step()
+        wandb.log({"train/loss": train_loss, "epoch": epoch})
 
         # evaluation
+        print(f"validation dataloader length: {len(valid_loader)}")
         if epoch % cfg.trainer.eval_interval == 0:
-            evaluate(model, valid_loader, device, data_root=Path(cfg.dataset.data_root), output_dir=preds_dir)
+            performance =evaluate(
+                global_model,
+                valid_loader,
+                device,
+                data_root=Path(cfg.dataset.data_root),
+                output_dir=preds_dir,
+                wdb=wdb,
+                epoch=epoch
+            )
+            if performance > best_performance:
+                best_performance = performance
+                #TODO: checkpoint 저장 경로 폴더 날짜별로 만들어야 함.
+                torch.save(model.state_dict(), perf_dir / f"best_model_fl.pth")
 
 if __name__ == "__main__":
     main()

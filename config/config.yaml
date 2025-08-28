@@ -1,0 +1,25 @@
+defaults:
+  - dataset: cityscapes
+  - model: segformer_mit-b0
+  - optimizer: adamw
+  - scheduler: poly
+  # - runner: null
+  # - augmentations: null
+  - _self_
+
+# 최상위에서 공통적으로 쓰이는 설정
+seed: 42
+gpus: 1
+output_dir: ./outputs
+device_id: 0
+experiment_name: test_cl_dataset_implementation
+trainer:
+  epochs: 430
+  eval_interval: 20
+
+
+# loop
+val_cfg:
+  type: ValLoop
+
+val_evaluator: IoUMetric

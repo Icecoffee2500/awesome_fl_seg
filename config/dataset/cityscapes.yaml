@@ -1,0 +1,67 @@
+# 데이터셋 설정
+name: cityscapes
+data_root: data/cityscapes/
+crop_size: [1024, 1024]
+mode: gtFine
+target_type: semantic
+
+# imagenet mean/std에 255를 곱한 값.
+# 정규화되지 않은 pixel 값을 정규화하기 위해서 사용. (0-255)
+norm_cfg:
+  mean: [123.675, 116.28, 103.53]
+  std: [58.395, 57.12, 57.375]
+
+train_pipeline:
+  # - type: LoadImageFromFile
+  # - type: LoadAnnotations
+  - type: RandomResize
+    scale: [2048, 1024]
+    ratio_range: [0.5, 2.0]
+    keep_ratio: true
+  - type: RandomCrop
+    crop_size: ${dataset.crop_size}
+    cat_max_ratio: 0.75
+  - type: RandomFlip
+    prob: 0.5
+  - type: PhotoMetricDistortion
+  - type: PackSegInputs # 여기서부터 results['input']과 results['target']이 생성됨.
+  - type: Normalize
+    mean: ${dataset.norm_cfg.mean}
+    std: ${dataset.norm_cfg.std}
+
+test_pipeline:
+  - type: Resize
+    scale: [2048, 1024]
+    keep_ratio: true
+  - type: PackSegInputs
+  - type: Normalize
+    mean: ${dataset.norm_cfg.mean}
+    std: ${dataset.norm_cfg.std}
+
+train_dataloader:
+  batch_size: 2
+  num_workers: 4
+  persistent_workers: true
+  sampler:
+    type: DistributedSampler
+    shuffle: true
+  dataset:
+    type: CityscapesDataset
+    data_root: ${dataset.data_root}
+    img_path: leftImg8bit/train
+    seg_map_path: ${dataset.mode}/train
+
+val_dataloader:
+  batch_size: 2
+  num_workers: 4
+  persistent_workers: true
+  sampler:
+    type: DefaultSampler
+    shuffle: false
+  dataset:
+    type: CityscapesDataset
+    data_root: ${dataset.data_root}
+    data_prefix:
+      img_path: leftImg8bit/val
+      seg_map_path: ${dataset.mode}/val
+    pipeline: ${dataset.test_pipeline}

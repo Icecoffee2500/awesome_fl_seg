@@ -6,7 +6,7 @@ from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader
 # import segmentation_models_pytorch as smp
 from segmentation_models_pytorch import Segformer
-from utils import save_data, print_keys
+from utils import save_data, print_keys, set_seed
 from evaluate import evaluate
 from segmentation.optimizer import build_optimizer
 from segmentation.scheduler import build_epoch_scheduler

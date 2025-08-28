@@ -39,7 +39,8 @@ test_pipeline:
     std: ${dataset.norm_cfg.std}
 
 train_dataloader:
-  batch_size: 2
+  # batch_size: 2
+  batch_size: 8
   num_workers: 4
   persistent_workers: true
   sampler:
@@ -52,7 +53,8 @@ train_dataloader:
     seg_map_path: ${dataset.mode}/train
 
 val_dataloader:
-  batch_size: 2
+  # batch_size: 2
+  batch_size: 16
   num_workers: 4
   persistent_workers: true
   sampler:

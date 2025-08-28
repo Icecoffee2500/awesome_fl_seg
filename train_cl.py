@@ -18,6 +18,7 @@ ROOT = Path.cwd()
 def train_one_epoch(model, optimizer, criterion, train_loader, device, curr_epoch, max_epochs):
     model.train()
     epoch_loss = 0.0
+    iter_start_time = datetime.now()
 
     for idx, (inputs, masks, img_infos) in enumerate(train_loader):
         inputs = inputs.to(device)
@@ -35,7 +36,13 @@ def train_one_epoch(model, optimizer, criterion, train_loader, device, curr_epoc
         epoch_loss += loss.item()
 
         if idx % 50 == 0:
-            print(f"Epoch [{curr_epoch+1}/{max_epochs}][{idx}/{len(train_loader)}]: Loss: {loss.item():.4f}")
+            elapsed = datetime.now() - iter_start_time
+            minutes, seconds = divmod(elapsed.total_seconds(), 60)
+            print(f"Epoch [{curr_epoch+1}/{max_epochs}][{idx}/{len(train_loader)}]: "
+                f"Current Loss: {loss.item():.4f} | Elapsed Time: {int(minutes)}m {seconds:.2f}s")
+
+            # print(f"Epoch [{curr_epoch+1}/{max_epochs}][{idx}/{len(train_loader)}]: Loss: {loss.item():.4f} | Time: {datetime.now() - epoch_start_time:.2f}s")
+            iter_start_time = datetime.now()
     
     return epoch_loss / len(train_loader)
 
@@ -125,8 +132,14 @@ def main(cfg:DictConfig) -> None:
 
     # train
     for epoch in range(cfg.trainer.epochs):
+        epoch_start_time = datetime.now()
+
         train_loss = train_one_epoch(model, optimizer, criterion, train_loader, device, epoch, cfg.trainer.epochs)
-        print(f"Epoch [{epoch+1}/{cfg.trainer.epochs}]: Loss: {train_loss:.4f}")
+
+        elapsed = datetime.now() - epoch_start_time
+        minutes, seconds = divmod(elapsed.total_seconds(), 60)
+
+        print(f"Epoch [{epoch+1}/{cfg.trainer.epochs}]: Epoch Loss: {train_loss:.4f} | Elapsed Time: {int(minutes)}m {seconds:.2f}s")
         scheduler.step()
         wandb.log({"train/loss": train_loss, "epoch": epoch})
 

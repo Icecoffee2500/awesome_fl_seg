@@ -31,7 +31,7 @@ trainId_to_labelId = {
     255: 255 # ignore
 }
 
-def evaluate(model, valid_loader, device, data_root: Path, output_dir: Path, wdb, epoch: int) -> None:
+def evaluate(model, valid_loader, device, data_root: Path, output_dir: Path, wdb=None, epoch: int=None) -> None:
     
     # Forward and save preds for cityscapes evaluation.
     _forward_and_save_preds(
@@ -46,7 +46,8 @@ def evaluate(model, valid_loader, device, data_root: Path, output_dir: Path, wdb
         data_root=data_root,
         output_dir=output_dir
     )
-    wdb.log({"val/mIoU": metric['averageScoreClasses'], "epoch": epoch})
+    if wdb:
+        wdb.log({"val/mIoU": metric['averageScoreClasses'], "epoch": epoch})
 
     # Print evaluation results.
     print("\n\t " + "-" * 33)

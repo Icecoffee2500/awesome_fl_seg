@@ -76,6 +76,7 @@ def train_one_epoch_fl(model, optimizer, criterion, train_loader, device, curr_e
         if idx % 50 == 0:
             elapsed = datetime.now() - iter_start_time
             minutes, seconds = divmod(elapsed.total_seconds(), 60)
+            # loss 높게 나올 때 어느 class인지 확인하기
             print(f"Client {client_idx+1} | Epoch [{curr_epoch+1}/{max_epochs}][{idx}/{len(train_loader)}]: "
                 f"Current Loss: {loss.item():.4f} | Elapsed Time: {int(minutes)}m {seconds:.2f}s")
 
@@ -153,7 +154,7 @@ def main(cfg:DictConfig) -> None:
     train_loaders = []
     for i in range(num_clients):
         train_loaders.append(
-                DataLoader(
+            DataLoader(
                 client_datasets[i],
                 batch_size=cfg.dataset.train_dataloader.batch_size,
                 shuffle=cfg.dataset.train_dataloader.sampler.shuffle,

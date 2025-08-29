@@ -140,7 +140,17 @@ def main(cfg:DictConfig) -> None:
         minutes, seconds = divmod(elapsed.total_seconds(), 60)
 
         print(f"Epoch [{epoch+1}/{cfg.trainer.epochs}]: Epoch Loss: {train_loss:.4f} | Elapsed Time: {int(minutes)}m {seconds:.2f}s")
+
+        # -- DEBUG: print LR before stepping (this is the LR used during this epoch)
+        lrs_before = [pg['lr'] for pg in optimizer.param_groups]
+        print(f"[Epoch {epoch+1}] lr_before_step: {lrs_before}, train_loss: {train_loss:.6f}")
+
         scheduler.step()
+
+        # -- DEBUG: print LR after stepping (this is the LR used during the next epoch)
+        lrs_after = [pg['lr'] for pg in optimizer.param_groups]
+        print(f"[Epoch {epoch+1}] lr_after_step: {lrs_after}")
+
         wandb.log({"train/loss": train_loss, "epoch": epoch})
 
         # evaluation

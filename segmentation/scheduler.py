@@ -18,6 +18,7 @@ def build_epoch_scheduler(optimizer, scheduler_cfg):
         if epoch < warmup_epochs:
             return 1.0  # warmup에서 이미 처리했음
         factor = 1 - (epoch - warmup_epochs) / (max_epochs - warmup_epochs)
+        print(f"epoch: {epoch}, factor: {factor}, factor ** power: {factor ** power}")
         return factor ** power
 
     poly_scheduler = LambdaLR(optimizer, lr_lambda=poly_lr_lambda)

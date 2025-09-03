@@ -93,8 +93,8 @@ def main(cfg:DictConfig) -> None:
     now = datetime.now()
     today = now.strftime("%m%d_%H:%M")
     
-    name = "train_fl"
-    name += f"{cfg.dataset.name}_bs{cfg.dataset.train_dataloader.batch_size}"
+    name = "train_fl_"
+    name += f"{cfg.dataset.name}_gpu-{cfg.device_id}"
     name += f"_{today}"
     wdb = wandb
     wdb.init(
@@ -212,6 +212,10 @@ def main(cfg:DictConfig) -> None:
     perf_dir = ROOT / "performance"
     perf_dir.mkdir(parents=True, exist_ok=True)
 
+    subdir_name = f"fl_{cfg.device_id}"
+    subdir = perf_dir / today / subdir_name
+    subdir.mkdir(parents=True, exist_ok=True)
+
     # train
     loss_list = []
     client_weights = []
@@ -258,8 +262,11 @@ def main(cfg:DictConfig) -> None:
             )
             if performance > best_performance:
                 best_performance = performance
-                #TODO: checkpoint 저장 경로 폴더 날짜별로 만들어야 함.
-                torch.save(model.state_dict(), perf_dir / f"best_model_fl.pth")
+                # #TODO: checkpoint 저장 경로 폴더 날짜별로 만들어야 함.
+                # torch.save(model.state_dict(), perf_dir / f"best_model_fl.pth")
+                best_performance = performance
+                print(f"[[epoch: {epoch}]], best_performance: {best_performance}")
+                torch.save(global_model.state_dict(), subdir / "best_model_fl.pth")
 
 if __name__ == "__main__":
     main()

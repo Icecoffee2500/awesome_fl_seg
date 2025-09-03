@@ -135,6 +135,9 @@ def main(cfg:DictConfig) -> None:
     best_performance = 0.0
     perf_dir = ROOT / "performance"
     perf_dir.mkdir(parents=True, exist_ok=True)
+    subdir_name = f"{cfg.dataset.crop_size[0]}_{cfg.dataset.crop_size[1]}_{cfg.device_id}"
+    subdir = perf_dir / today / subdir_name
+    subdir.mkdir(parents=True, exist_ok=True)
 
     # print("Simulate LR progression for first epochs")
     # print(f"scheduler.last_epoch: {scheduler.last_epoch}")
@@ -193,7 +196,8 @@ def main(cfg:DictConfig) -> None:
             )
             if performance > best_performance:
                 best_performance = performance
-                torch.save(model.state_dict(), perf_dir / f"best_model.pth")
+                print(f"[[epoch: {epoch}]], best_performance: {best_performance}")
+                torch.save(model.state_dict(), subdir / "best_model.pth")
 
 if __name__ == "__main__":
     main()

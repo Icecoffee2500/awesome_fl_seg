@@ -205,7 +205,8 @@ def main(cfg:DictConfig) -> None:
         scheduler_list.append(build_epoch_scheduler(optimizer, cfg.scheduler))
 
     # evaluation
-    preds_dir = ROOT / "predictions"  # 예측 파일 저장 경로
+    # preds_dir = ROOT / "predictions"  # 예측 파일 저장 경로
+    preds_dir = ROOT / f"predictions_{cfg.device_id}"  # 예측 파일 저장 경로
     preds_dir.mkdir(parents=True, exist_ok=True)
 
     best_performance = 0.0

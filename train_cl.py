@@ -12,6 +12,7 @@ from segmentation.optimizer import build_optimizer
 from segmentation.scheduler import build_epoch_scheduler
 import wandb
 from datetime import datetime
+from torch.optim.lr_scheduler import LinearLR
 
 ROOT = Path.cwd()
 
@@ -119,6 +120,8 @@ def main(cfg:DictConfig) -> None:
 
     # optimizer, scheduler, criterion 설정
     optimizer = build_optimizer(model, cfg.optimizer)
+
+    # scheduler에서 optimizer를 wrapping하고, 위의 optimizer도 같은 id를 참조하고 있기 때문에 위의 optimizer도 wrapping된 상태가 된다.
     scheduler = build_epoch_scheduler(optimizer, cfg.scheduler)
     criterion = torch.nn.CrossEntropyLoss(ignore_index=255)
 
@@ -130,6 +133,26 @@ def main(cfg:DictConfig) -> None:
     perf_dir = ROOT / "performance"
     perf_dir.mkdir(parents=True, exist_ok=True)
 
+    # print("Simulate LR progression for first epochs")
+    # print(f"scheduler.last_epoch: {scheduler.last_epoch}")
+    # vals_last_lr = scheduler.get_last_lr()
+    # print(f"scheduler.get_last_lr() returns:", [format(v, ".17g") for v in scheduler.get_last_lr()])
+    # for epoch in range(0, 20):
+    #     # lrs_before = [pg['lr'] for pg in optimizer.param_groups]
+    #     # print(f"Epoch {epoch+1:2d} lr_before: {lrs_before}")
+
+    #     # optimizer.step()
+    #     scheduler.step()
+
+    #     vals_last_lr = scheduler.get_last_lr()
+    #     print(f"scheduler.last_epoch: {scheduler.last_epoch}")
+    #     print("scheduler.get_last_lr() returns:", [format(v, ".17g") for v in vals_last_lr]) # -> step 후에 업데이트됨.
+
+    #     # lrs_after = [pg['lr'] for pg in optimizer.param_groups]
+    #     # print(f"Epoch {epoch+1:2d} lr_after : {lrs_after}\n")
+    
+    # return
+    
     # train
     for epoch in range(cfg.trainer.epochs):
         epoch_start_time = datetime.now()

@@ -172,7 +172,8 @@ def main(cfg:DictConfig) -> None:
     )
 
     # 모델 로드
-    device = "cuda:1" if torch.cuda.is_available() else "cpu"
+    device = f"cuda:{cfg.device_id}" if torch.cuda.is_available() else "cpu"
+    print(f"device: {device}")
     # device = "cuda" if torch.cuda.is_available() else "cpu"
     # checkpoint = "smp-hub/segformer-b0-1024x1024-city-160k"
     # model = smp.from_pretrained(checkpoint).to(device)

@@ -22,6 +22,8 @@ def train_one_epoch(model, optimizer, criterion, train_loader, device, curr_epoc
     iter_start_time = datetime.now()
 
     for idx, (inputs, masks, img_infos) in enumerate(train_loader):
+        # save_data(inputs, masks, root_dir=ROOT)
+        # return
         inputs = inputs.to(device)
         # masks = masks.to(device)
         masks = masks.to(device).squeeze(1)  # [B, H, W]
@@ -55,8 +57,8 @@ def main(cfg:DictConfig) -> None:
     now = datetime.now()
     today = now.strftime("%m%d_%H:%M")
     
-    name = "train_cl"
-    name += f"{cfg.dataset.name}_bs{cfg.dataset.train_dataloader.batch_size}"
+    name = "train_cl_"
+    name += f"{cfg.dataset.name}_crop_size-{cfg.dataset.crop_size}_gpu-{cfg.device_id}"
     name += f"_{today}"
     wdb = wandb
     wdb.init(
@@ -104,7 +106,8 @@ def main(cfg:DictConfig) -> None:
     )
 
     # 모델 로드
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = f"cuda:{cfg.device_id}" if torch.cuda.is_available() else "cpu"
+    print(f"device: {device}")
     # checkpoint = "smp-hub/segformer-b0-1024x1024-city-160k"
     # model = smp.from_pretrained(checkpoint).to(device)
     
@@ -165,16 +168,17 @@ def main(cfg:DictConfig) -> None:
         print(f"Epoch [{epoch+1}/{cfg.trainer.epochs}]: Epoch Loss: {train_loss:.4f} | Elapsed Time: {int(minutes)}m {seconds:.2f}s")
 
         # -- DEBUG: print LR before stepping (this is the LR used during this epoch)
-        lrs_before = [pg['lr'] for pg in optimizer.param_groups]
-        print(f"[Epoch {epoch+1}] lr_before_step: {lrs_before}, train_loss: {train_loss:.6f}")
+        # lrs_before = [pg['lr'] for pg in optimizer.param_groups]
+        # print(f"[Epoch {epoch+1}] lr_before_step: {lrs_before}, train_loss: {train_loss:.6f}")
 
         scheduler.step()
 
         # -- DEBUG: print LR after stepping (this is the LR used during the next epoch)
-        lrs_after = [pg['lr'] for pg in optimizer.param_groups]
-        print(f"[Epoch {epoch+1}] lr_after_step: {lrs_after}")
+        # lrs_after = [pg['lr'] for pg in optimizer.param_groups]
+        # print(f"[Epoch {epoch+1}] lr_after_step: {lrs_after}")
 
         wandb.log({"train/loss": train_loss, "epoch": epoch})
+        
 
         # evaluation
         if epoch % cfg.trainer.eval_interval == 0:

@@ -15,7 +15,7 @@ device_id: 0
 experiment_name: test_cl_dataset_implementation
 trainer:
   epochs: 430
-  eval_interval: 1
+  eval_interval: 10
 
 
 # loop

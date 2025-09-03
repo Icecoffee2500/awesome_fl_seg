@@ -4,6 +4,7 @@ data_root: data/cityscapes/
 crop_size: [1024, 1024]
 mode: gtFine
 target_type: semantic
+test_scale: [2048, 1024]
 
 # imagenet mean/std에 255를 곱한 값.
 # 정규화되지 않은 pixel 값을 정규화하기 위해서 사용. (0-255)
@@ -31,7 +32,7 @@ train_pipeline:
 
 test_pipeline:
   - type: Resize
-    scale: [2048, 1024]
+    scale: ${dataset.test_scale}
     keep_ratio: true
   - type: PackSegInputs
   - type: Normalize

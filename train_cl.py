@@ -129,7 +129,8 @@ def main(cfg:DictConfig) -> None:
     criterion = torch.nn.CrossEntropyLoss(ignore_index=255)
 
     # evaluation
-    preds_dir = ROOT / "predictions"  # 예측 파일 저장 경로
+    # preds_dir = ROOT / "predictions"  # 예측 파일 저장 경로
+    preds_dir = ROOT / f"predictions_{cfg.device_id}"  # 예측 파일 저장 경로
     preds_dir.mkdir(parents=True, exist_ok=True)
 
     best_performance = 0.0

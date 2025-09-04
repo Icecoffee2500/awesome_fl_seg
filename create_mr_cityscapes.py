@@ -3,24 +3,26 @@ import shutil
 import sys
 from PIL import Image
 from datetime import datetime
+from pathlib import Path
 
-def resize_and_copy(src_dir, dst_dir, res_w, res_h):
+def resize_and_copy(src_dir: Path, dst_dir: Path, res_w: int, res_h: int):
     for root, dirs, files in os.walk(src_dir):
         # send 폴더 무시
         if 'send' in dirs:
             dirs.remove('send')
 
         # 상대 경로 계산 및 대상 디렉토리 생성
-        rel_path = os.path.relpath(root, src_dir)
-        dst_root = os.path.join(dst_dir, rel_path)
-        os.makedirs(dst_root, exist_ok=True)
+        root_path = Path(root)
+        rel_path = root_path.relative_to(src_dir)
+        dst_root = dst_dir / rel_path
+        dst_root.mkdir(parents=True, exist_ok=True)
 
         for file in files:
-            src_file = os.path.join(root, file)
-            dst_file = os.path.join(dst_root, file)
+            src_file = root_path / file
+            dst_file = dst_root / file
 
             # gtFine 또는 leftImg8bit 하위의 PNG 이미지인 경우 리사이즈
-            if file.endswith('.png') and ('gtFine' in rel_path or 'leftImg8bit' in rel_path):
+            if file.endswith('.png') and ('gtFine' in rel_path.parts or 'leftImg8bit' in rel_path.parts):
                 with Image.open(src_file) as img:
                     resized_img = img.resize((res_w, res_h), Image.BOX)  # BOX(AREA)으로 제대로 리사이즈
                     resized_img.save(dst_file)
@@ -43,10 +45,15 @@ if __name__ == "__main__":
         print("해상도는 정수로 입력해주세요.")
         sys.exit(1)
 
-    src_dir = "/home/juju/taeheon_ws_backup/taeheon_ws/FL/awesome_fl_seg/data/cityscapes"
-    dst_dir = os.path.join(os.path.dirname(src_dir), f"cityscapes_{res_w}x{res_h}")
+    ROOT = Path(__file__).parent
+    print(f"ROOT: {ROOT}")
 
-    if os.path.exists(dst_dir):
+    src_dir = ROOT / "data" / "cityscapes"
+    dst_dir = src_dir.parent / f"cityscapes_{res_w}x{res_h}"
+    print(f"src_dir: {src_dir}")
+    print(f"dst_dir: {dst_dir}")
+    
+    if dst_dir.exists():
         print(f"대상 폴더 {dst_dir}가 이미 존재합니다. 덮어쓰기를 피하려면 삭제 후 실행하세요.")
         sys.exit(1)
 
@@ -56,4 +63,3 @@ if __name__ == "__main__":
     elapsed = datetime.now() - start_time
     minutes, seconds = divmod(elapsed.total_seconds(), 60)
     print(f"복제 및 리사이즈 완료! 소요 시간: {int(minutes)}m {seconds:.2f}s")
-    # print("복제 및 리사이즈 완료!")

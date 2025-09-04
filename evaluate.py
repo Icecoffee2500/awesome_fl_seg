@@ -107,6 +107,9 @@ def _forward_and_save_preds(model, valid_loader, device, output_dir):
             # Image.fromarray(pred_np).save(save_path / img_name)
             Image.fromarray(pred_np_labelId).save(save_path / img_name)
 
+# 여러 resolution의 data를 평가하기 위해서는
+# data_root를 resolution 별로 만들어놔야 한다.
+# dataset.test_scale에 해당하는 data_root를 넘겨주면 된다.
 def _evaluate(data_root: Path, output_dir: Path) -> dict:
     # 모든 prediction PNG 저장 후 평가
     gt_dir = data_root / "gtFine" / "val" # "/path/to/gtFine/val"  # GT 폴더 경로

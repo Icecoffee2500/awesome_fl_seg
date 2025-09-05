@@ -19,7 +19,7 @@ trainer:
 
 test_checkpoint_path: performance/0903_16:19/1024_1024_0/best_model.pth
 test_data_root: data/cityscapes
-# test_data_root: data/cityscapes/1536x768
+# test_data_root: data/cityscapes_1536x768
 
 # loop
 val_cfg:

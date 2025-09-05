@@ -34,12 +34,12 @@ trainId_to_labelId = {
 def evaluate(model, valid_loader, device, data_root: Path, output_dir: Path, wdb=None, epoch: int=None) -> None:
     
     # Forward and save preds for cityscapes evaluation.
-    # _forward_and_save_preds(
-    #     model,
-    #     valid_loader,
-    #     device,
-    #     output_dir
-    # )
+    _forward_and_save_preds(
+        model,
+        valid_loader,
+        device,
+        output_dir
+    )
 
     # Evaluate through cityscapesscripts.
     metric = _evaluate(

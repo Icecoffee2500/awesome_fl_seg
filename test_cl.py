@@ -5,6 +5,7 @@ import hydra
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader
 import segmentation_models_pytorch as smp
+from segmentation_models_pytorch import Segformer
 from utils import save_data, print_keys
 from evaluate import evaluate
 
@@ -34,28 +35,37 @@ def main(cfg:DictConfig) -> None:
     )
 
     # 모델 로드
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = f"cuda:{cfg.device_id}" if torch.cuda.is_available() else "cpu"
+    print(f"device: {device}")
     # model.to(device)
-    checkpoint = "smp-hub/segformer-b0-1024x1024-city-160k"
-    model = smp.from_pretrained(checkpoint).eval().to(device)
-    
-    # model = smp.SegFormer(
-    #     encoder_name="mit_b0",
-    #     encoder_weights="imagenet",  # ImageNet pretrained
-    #     decoder_channels=256,
-    #     in_channels=3,
-    #     classes=19
-    # )
+    # checkpoint = "smp-hub/segformer-b0-1024x1024-city-160k"
+    checkpoint = cfg.test_checkpoint_path
+    print(f"checkpoint: {checkpoint}")
+    # model = smp.from_pretrained(checkpoint).eval().to(device)
+
+    model = Segformer(
+        encoder_name="mit_b0",            # MiT-B0
+        encoder_weights="imagenet",       # ImageNet pretrained
+        decoder_channels=256,             # decoder 내부 채널
+        in_channels=3,
+        classes=19,                       # Cityscapes 클래스 수
+        encoder_output_stride=32          # stage 0~3 출력 stride 설정 (smp 기본값)
+    )
+    model.to(device)
+    model.load_state_dict(torch.load(checkpoint))
+    # model.eval()
 
     # evaluation ------------------------------------------------------------
     preds_dir = ROOT / "predictions"  # 예측 파일 저장 경로
     preds_dir.mkdir(parents=True, exist_ok=True)
 
+    test_data_root = Path(cfg.test_data_root)
+
     evaluate(
         model=model,
         valid_loader=valid_loader,
         device=device,
-        data_root=Path(cfg.dataset.data_root),
+        data_root=test_data_root,
         output_dir=preds_dir
     )
 

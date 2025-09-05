@@ -119,11 +119,11 @@ def _evaluate(data_root: Path, output_dir: Path) -> dict:
 
     im = Image.open(gt_imgs[0])
     arr = np.array(im)
-    print(f"arr.shape: {arr.shape}, np.unique(arr)[:50]: {np.unique(arr)[:50]}")
+    print(f"gt_imgs arr.shape: {arr.shape}, np.unique(arr)[:50]: {np.unique(arr)[:50]}")
 
     im = Image.open(pred_imgs[0])
     arr = np.array(im)
-    print(f"arr.shape: {arr.shape}, np.unique(arr)[:50]: {np.unique(arr)[:50]}")
+    print(f"pred_imgs arr.shape: {arr.shape}, np.unique(arr)[:50]: {np.unique(arr)[:50]}")
 
     print(f"len(gt_imgs): {len(gt_imgs)}")
     print(f"len(pred_imgs): {len(pred_imgs)}")

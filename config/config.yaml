@@ -26,3 +26,5 @@ val_cfg:
   type: ValLoop
 
 val_evaluator: IoUMetric
+
+performance/0903_16:20/768_768_1/best_model.pth

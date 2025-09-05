@@ -34,12 +34,12 @@ trainId_to_labelId = {
 def evaluate(model, valid_loader, device, data_root: Path, output_dir: Path, wdb=None, epoch: int=None) -> None:
     
     # Forward and save preds for cityscapes evaluation.
-    _forward_and_save_preds(
-        model,
-        valid_loader,
-        device,
-        output_dir
-    )
+    # _forward_and_save_preds(
+    #     model,
+    #     valid_loader,
+    #     device,
+    #     output_dir
+    # )
 
     # Evaluate through cityscapesscripts.
     metric = _evaluate(
@@ -117,6 +117,9 @@ def _evaluate(data_root: Path, output_dir: Path) -> dict:
     print(f"gt_dir: {gt_dir}")
     gt_imgs = sorted(glob.glob(f"{gt_dir}/**/*_gtFine_labelIds.png", recursive=True))
     pred_imgs = sorted(glob.glob(f"{output_dir}/**/*.png", recursive=True))
+
+    print(f"len(gt_imgs): {len(gt_imgs)}")
+    print(f"len(pred_imgs): {len(pred_imgs)}")
 
     assert len(gt_imgs) == len(pred_imgs), "GT와 prediction 이미지 개수 불일치"
 

@@ -17,7 +17,7 @@ trainer:
   epochs: 430
   eval_interval: 10
 
-test_checkpoint_path: preformance/0903_16:19/1024_1024_0/best_model.pth
+test_checkpoint_path: performance/0903_16:19/1024_1024_0/best_model.pth
 test_data_root: data/cityscapes
 # test_data_root: data/cityscapes/1536x768
 

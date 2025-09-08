@@ -46,9 +46,13 @@ def train_one_epoch_fl(model, optimizer, criterion, train_loader, device, curr_e
 
     # client별 target resolution 설정
     target_resolutions = {
+        # 0: (1024, 1024),
+        # 1: (768, 768),
+        # 2: (512, 512)
         0: (1024, 1024),
-        1: (768, 768),
-        2: (512, 512)
+        1: (1024, 1024),
+        2: (1024, 1024)
+        
     }
     target_h, target_w = target_resolutions.get(client_idx, (1024, 1024))
 

@@ -14,6 +14,7 @@ checkpoints/
 data/
 outputs/
 performance/
+performance_etri/
 predictions/
 visualization/
 wandb/

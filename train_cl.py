@@ -64,7 +64,7 @@ def main(cfg:DictConfig) -> None:
     wdb.init(
         config=OmegaConf.to_container(cfg, resolve=True),
         project="Segmentation training (CL)",
-        name = name,
+        name=name,
     )
 
     # Set random seed for reproducibility from the main entrypoint

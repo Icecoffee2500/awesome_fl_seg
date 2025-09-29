@@ -52,7 +52,7 @@ def main(cfg:DictConfig) -> None:
         encoder_output_stride=32          # stage 0~3 출력 stride 설정 (smp 기본값)
     )
     model.to(device)
-    model.load_state_dict(torch.load(checkpoint))
+    model.load_state_dict(torch.load(checkpoint, map_location=device))
     # model.eval()
 
     # evaluation ------------------------------------------------------------

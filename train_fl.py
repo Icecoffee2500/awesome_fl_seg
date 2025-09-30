@@ -39,21 +39,20 @@ def aggregate(weights, num_samples=None):
     
     return w_glob_client
 
-def train_one_epoch_fl(model, optimizer, criterion, train_loader, device, curr_epoch, max_epochs, client_idx):
+def train_one_epoch_fl(model, optimizer, criterion, train_loader, device, curr_epoch, max_epochs, client_idx, target_resolutions):
     model.train()
     epoch_loss = 0.0
     iter_start_time = datetime.now()
 
     # client별 target resolution 설정
-    target_resolutions = {
-        # 0: (1024, 1024),
-        # 1: (768, 768),
-        # 2: (512, 512)
-        0: (1024, 1024),
-        1: (1024, 1024),
-        2: (1024, 1024)
-        
-    }
+    # target_resolutions = {
+    #     0: (1024, 1024),
+    #     1: (768, 768),
+    #     2: (512, 512)
+    #     # 0: (1024, 1024),
+    #     # 1: (1024, 1024),
+    #     # 2: (1024, 1024)
+    # }
     target_h, target_w = target_resolutions.get(client_idx, (1024, 1024))
 
     for idx, (inputs, masks, img_infos) in enumerate(train_loader):
@@ -229,7 +228,7 @@ def main(cfg:DictConfig) -> None:
 
         for i, (model, optimizer, train_loader) in enumerate(zip(model_list, optimizer_list, train_loaders)):
             train_loss = train_one_epoch_fl(
-                model, optimizer, criterion, train_loader, device, epoch, cfg.trainer.epochs, client_idx=i
+                model, optimizer, criterion, train_loader, device, epoch, cfg.trainer.epochs, client_idx=i, target_resolutions=cfg.fl.target_resolutions
             )
             loss_list.append(train_loss)
             client_weights.append(model.state_dict())

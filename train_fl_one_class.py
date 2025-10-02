@@ -19,6 +19,7 @@ from functools import partial
 from PIL import Image
 import numpy as np
 from sklearn.cluster import KMeans
+from collections import Counter
 
 ROOT = Path.cwd()
 
@@ -114,6 +115,9 @@ def main(cfg:DictConfig) -> None:
     seed = 42
     set_seed(seed)
 
+    device = f"cuda:{cfg.device_id}" if torch.cuda.is_available() else "cpu"
+    print(f"device: {device}")
+
     # label_id = 31 # train class label_id
     label_id = 26 # car class label_id
     train_id = 13 # car class train_id
@@ -166,18 +170,37 @@ def main(cfg:DictConfig) -> None:
     
     kmeans = KMeans(n_clusters=3, random_state=0, n_init=10).fit(scales_np)
     print(f"kmeans: {kmeans}")
-    labels_kmeans = kmeans.labels_   # 0,1,2
-    method = 'kmeans'
 
     # choose labels = labels_kmeans if available else labels_quantile
-    labels = labels_kmeans
+    labels = kmeans.labels_   # 0,1,2
     print(f"labels: {labels}")
 
-    # 그룹별 인덱스 (dataset 인덱스)
+    # centroids
+    centroids = kmeans.cluster_centers_.flatten()   # shape (k,)
+    # centroids 오름차순 정렬 -> order는 original cluster index들을 작은값부터 담고 있음
+    order = np.argsort(centroids)                   # e.g. array([2,0,1]) 의미: cluster2가 가장 작음
+    # original cluster idx -> rank(0=small,1=mid,2=large)
+    rank_of_cluster = {int(orig_idx): int(rank) for rank, orig_idx in enumerate(order)}
+
+    # labels remap: original label -> rank label (0=small,1=mid,2=large)
+    labels_sorted = np.array([rank_of_cluster[int(l)] for l in labels])
+
+    # build group indices
     group_indices = {0: [], 1: [], 2: []}
-    for i, lab in enumerate(labels):
-        ds_idx = dataset_indices[i]   # dataset index corresponding to the i-th collected scale
+    for i, lab in enumerate(labels_sorted):
+        ds_idx = dataset_indices[i]
         group_indices[int(lab)].append(ds_idx)
+
+    # 확인
+    counts = Counter(labels_sorted)
+    print(f"After remapping (KMeans -> small / mid / large): {counts}")
+    print(f"Sorted centroids (small -> large): {centroids[order]}")
+
+    # # 그룹별 인덱스 (dataset 인덱스)
+    # group_indices = {0: [], 1: [], 2: []}
+    # for i, lab in enumerate(labels):
+    #     ds_idx = dataset_indices[i]   # dataset index corresponding to the i-th collected scale
+    #     group_indices[int(lab)].append(ds_idx)
 
     # 확인
     for g in [0, 1, 2]:
@@ -286,8 +309,6 @@ def main(cfg:DictConfig) -> None:
     )
 
     # 모델 로드
-    device = f"cuda:{cfg.device_id}" if torch.cuda.is_available() else "cpu"
-    print(f"device: {device}")
     # device = "cuda" if torch.cuda.is_available() else "cpu"
     # checkpoint = "smp-hub/segformer-b0-1024x1024-city-160k"
     # model = smp.from_pretrained(checkpoint).to(device)

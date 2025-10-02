@@ -13,16 +13,39 @@ from segmentation.scheduler import build_epoch_scheduler
 import wandb
 from datetime import datetime
 from torch.optim.lr_scheduler import LinearLR
+from torch.utils.data._utils.collate import default_collate
 
 ROOT = Path.cwd()
 
+def custom_collate(batch):
+    # batch: list of tuples returned by __getitem__()
+    # 예: [(input, target, image_meta), ...]
+    inputs, targets, metas = zip(*batch)  # 각각 길이=batch_size 튜플
+    # 기본적으로 tensor/ndarray들만 default_collate로 병합
+    batched_inputs = default_collate(inputs)
+    batched_targets = default_collate(targets)
+    # metas는 variable-key / variable-length일 수 있으니 리스트로 그대로 둠
+    return batched_inputs, batched_targets, list(metas)
+
 def train_one_epoch(model, optimizer, criterion, train_loader, device, curr_epoch, max_epochs):
+    """
+    img_infos: list (길이는 batch size)
+    img_info[0]: dict(city, file_name, bboxes)
+    bboxes: list of [id, x1, y1, x2, y2] # 첫번째 값은 id(class) 값!!
+    """
     model.train()
     epoch_loss = 0.0
     iter_start_time = datetime.now()
 
     for idx, (inputs, masks, img_infos) in enumerate(train_loader):
         # save_data(inputs, masks, root_dir=ROOT)
+        # print(f"[city: {img_infos['city']}] [img_filename: {img_infos['file_name']}] img_infos['bboxes']: {img_infos['bboxes']}")
+        # print(f"[img_infos]:\n{img_infos}")
+        # print(f"img_infos length: {len(img_infos)}")
+        # print(f"type of img_infos: {type(img_infos)}")
+        
+        # for img_info in img_infos:
+        #     print(f"[city: {img_info['city']}] [img_filename: {img_info['file_name']}] img_info['bboxes']: {img_info['bboxes']}")
         # return
         inputs = inputs.to(device)
         # masks = masks.to(device)
@@ -46,6 +69,9 @@ def train_one_epoch(model, optimizer, criterion, train_loader, device, curr_epoc
 
             # print(f"Epoch [{curr_epoch+1}/{max_epochs}][{idx}/{len(train_loader)}]: Loss: {loss.item():.4f} | Time: {datetime.now() - epoch_start_time:.2f}s")
             iter_start_time = datetime.now()
+    
+    # print(f"epoch_loss: {epoch_loss}")
+    # print(f"len(train_loader): {len(train_loader)}")
     
     return epoch_loss / len(train_loader)
 
@@ -71,6 +97,8 @@ def main(cfg:DictConfig) -> None:
     seed = 42
     set_seed(seed)
 
+    print(f"cfg.dataset.test_pipeline: {cfg.dataset.test_pipeline}")
+
     # 데이터셋 로드
     train_dataset = CityscapesDataset(
         root=cfg.dataset.data_root,
@@ -88,6 +116,7 @@ def main(cfg:DictConfig) -> None:
         pipeline_cfg=cfg.dataset.test_pipeline,
     )
 
+    
     # 데이터로더 설정
     train_loader = DataLoader(
         train_dataset,
@@ -95,6 +124,7 @@ def main(cfg:DictConfig) -> None:
         shuffle=cfg.dataset.train_dataloader.sampler.shuffle,
         num_workers=cfg.dataset.train_dataloader.num_workers,
         pin_memory=True,
+        collate_fn=custom_collate,
     )
     
     valid_loader = DataLoader(
@@ -103,6 +133,7 @@ def main(cfg:DictConfig) -> None:
         shuffle=cfg.dataset.val_dataloader.sampler.shuffle,
         num_workers=cfg.dataset.val_dataloader.num_workers,
         pin_memory=True,
+        collate_fn=custom_collate,
     )
 
     # 모델 로드
@@ -168,6 +199,9 @@ def main(cfg:DictConfig) -> None:
 
         elapsed = datetime.now() - epoch_start_time
         minutes, seconds = divmod(elapsed.total_seconds(), 60)
+        # print(f"train_loss: {train_loss}")
+        # print(f"minutes: {minutes}")
+        # print(f"seconds: {seconds}")
 
         print(f"Epoch [{epoch+1}/{cfg.trainer.epochs}]: Epoch Loss: {train_loss:.4f} | Elapsed Time: {int(minutes)}m {seconds:.2f}s")
 

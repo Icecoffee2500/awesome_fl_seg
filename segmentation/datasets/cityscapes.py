@@ -61,6 +61,7 @@ class CityscapesDataset(Dataset):
         self.image_file_paths = []
         self.target_file_paths = []
         self.image_metas = []
+        self.bboxes = []
 
         if split not in ['train', 'test', 'val']:
             raise ValueError('Invalid split for mode! Please use split="train", split="test"'
@@ -79,7 +80,8 @@ class CityscapesDataset(Dataset):
                 self.image_file_paths.append(file_path)
                 _img_meta = dict(
                     city=city,
-                    file_name=file_path.name
+                    file_name=file_path.name,
+                    bboxes=None
                 )
                 self.image_metas.append(_img_meta)
                 pure_img_name = re.sub(r'_leftImg8bit$', '', file_path.stem) # 순수한 이미지 이름만 # 예를 들면 # bochum_000000_014803
@@ -106,8 +108,28 @@ class CityscapesDataset(Dataset):
         
         input = results['input']
         target = results['target']
+        
+        # 여기서 bbox scale 정보 추가.
+        # print(f"image.shape: {input.shape}")
+        # print(f"target.shape: {target.shape}")
+        bboxes_dict = instanceid_map_to_bboxes(target[0])
 
-        return input, target, self.image_metas[index]
+        # meta 복사 — 절대 self.image_metas를 워커에서 수정하지 않음
+        meta = dict(self.image_metas[index])
+
+        # convert dict -> list of [id, x1, y1, x2, y2] (일관된 구조)
+        bboxes_list = [[inst_id] + bbox for inst_id, bbox in bboxes_dict.items()]
+        meta['bboxes'] = bboxes_list
+        # if self.image_metas[index]['bboxes'] is None:
+        #     self.image_metas[index]['bboxes'] = bboxes
+        
+        # if self.image_metas[index]['bboxes'] == {}:
+        #     self.image_metas[index]['bboxes'] = bboxes
+
+        # print(f"bboxes: {bboxes}")
+
+        # return input, target, self.image_metas[index]
+        return input, target, meta
 
     def __len__(self):
         return len(self.image_file_paths)
@@ -128,3 +150,31 @@ class CityscapesDataset(Dataset):
             return f'{mode}_polygons.json'
         elif target_type == 'depth':
             return f'{mode}_disparity.png'
+
+def instanceid_map_to_bboxes(instance_map, ignore_ids=None, return_xywh=False):
+    """
+    instance_map: (H,W) integer array where different positive integers denote different instances.
+    ignore_ids: set/list of ids to skip (e.g., 0 for background, 255 for void)
+    return_xywh: if True, return [x, y, w, h], else return [x1, y1, x2, y2]
+    """
+    if ignore_ids is None:
+        # ignore_ids = {0, 255}  # Cityscapes often uses 0/255 for void/background; 필요에 맞게 조정
+        ignore_ids = {255}  # Cityscapes often uses 0/255 for void/background; 필요에 맞게 조정
+    ids = np.unique(instance_map)
+    # print(f"ids: {ids}")
+    bboxes = {}
+    for id_ in ids:
+        if int(id_) in ignore_ids:
+            continue
+        mask = (instance_map == id_)
+        if not mask.any():
+            continue
+        ys, xs = np.where(mask)
+        x_min, x_max = int(xs.min()), int(xs.max())
+        y_min, y_max = int(ys.min()), int(ys.max())
+        if return_xywh:
+            b = [x_min, y_min, x_max - x_min + 1, y_max - y_min + 1]  # width/height 포함
+        else:
+            b = [x_min, y_min, x_max, y_max]
+        bboxes[int(id_)] = b
+    return bboxes

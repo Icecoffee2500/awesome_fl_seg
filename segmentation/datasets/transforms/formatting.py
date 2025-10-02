@@ -91,7 +91,7 @@ class PackSegInputs(BaseTransform):
     # Any ID not in Cityscapes.classes will remain mapped to 255 (ignore_index).
     _id_to_train_id_map = np.full(256, 255, dtype=np.uint8)
     for c in classes:
-        _id_to_train_id_map[c.id] = c.train_id
+        _id_to_train_id_map[c.id] = c.train_id # c.id: 0~33, c.train_id: 0~18 # 여기서 변환 map을 만듦.
     id_to_train_id = _id_to_train_id_map
 
     def __init__(self,

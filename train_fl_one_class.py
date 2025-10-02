@@ -207,10 +207,14 @@ def main(cfg:DictConfig) -> None:
         print(f"group {g}: {len(group_indices[g])} samples")
     
     # Subset 생성
+    client_dataset_lengths = []
     client_datasets = {}
     for g in [0, 1, 2]:
         inds = group_indices[g]
         client_datasets[g] = torch.utils.data.Subset(train_dataset, inds)  # train_dataset은 원본 전체 dataset 객체
+        client_dataset_lengths.append(len(client_datasets[g]))
+
+    print(f"client_dataset_lengths: {client_dataset_lengths}")
 
     # train_loader_temp = DataLoader(
     #     train_dataset_with_one_class,
@@ -367,7 +371,7 @@ def main(cfg:DictConfig) -> None:
         
         # aggregate weights
         print(f">>> load Fed-Averaged weight to the proxy client model ...")
-        w_glob_client = aggregate(client_weights)
+        w_glob_client = aggregate(client_weights, client_dataset_lengths)
 
         # Braadcast weight to each clients
         print(f">>> load Fed-Averaged weight to the each client model ...")

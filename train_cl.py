@@ -251,8 +251,8 @@ def main(cfg:DictConfig) -> None:
         #         torch.save(model.state_dict(), subdir / "best_model.pth")
         
         # evaluation
-        if epoch % cfg.trainer.eval_interval == 0:
-        # if (epoch + 1) % cfg.trainer.eval_interval == 0:
+        # if epoch % cfg.trainer.eval_interval == 0:
+        if (epoch + 1) % cfg.trainer.eval_interval == 0:
             performance, performance_car = evaluate_only_car(
                 model,
                 valid_loader,

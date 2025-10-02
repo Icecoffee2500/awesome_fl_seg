@@ -2,6 +2,7 @@ from pathlib import Path
 import copy
 import torch
 from segmentation.datasets.cityscapes import CityscapesDataset
+from segmentation.datasets.cityscapes_one_class import CityscapesDatasetOneClass
 import hydra
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader
@@ -15,6 +16,8 @@ import wandb
 from datetime import datetime
 import torch.nn.functional as F
 from functools import partial
+from PIL import Image
+import numpy as np
 
 ROOT = Path.cwd()
 
@@ -99,25 +102,73 @@ def main(cfg:DictConfig) -> None:
     name = "train_fl_"
     name += f"{cfg.dataset.name}_gpu-{cfg.device_id}"
     name += f"_{today}"
-    wdb = wandb
-    wdb.init(
-        config=OmegaConf.to_container(cfg, resolve=True),
-        project="Segmentation training (FL)",
-        name = name,
-    )
+    # wdb = wandb
+    # wdb.init(
+    #     config=OmegaConf.to_container(cfg, resolve=True),
+    #     project="Segmentation training (FL)",
+    #     name = name,
+    # )
 
     # Set random seed for reproducibility from the main entrypoint
     seed = 42
     set_seed(seed)
 
+    # label_id = 31 # train class label_id
+    label_id = 26 # car class label_id
+    train_id = 13 # car class train_id
+
     # 데이터셋 로드
-    train_dataset = CityscapesDataset(
+    # train_dataset = CityscapesDataset(
+    #     root=cfg.dataset.data_root,
+    #     split="train",
+    #     mode=cfg.dataset.mode,
+    #     target_type=cfg.dataset.target_type,
+    #     pipeline_cfg=cfg.dataset.train_pipeline,
+    # )
+    train_dataset = CityscapesDatasetOneClass(
         root=cfg.dataset.data_root,
         split="train",
         mode=cfg.dataset.mode,
         target_type=cfg.dataset.target_type,
         pipeline_cfg=cfg.dataset.train_pipeline,
+        train_id=train_id,
     )
+
+    # train_dataset에서 특정 class만 뽑아서 train_dataset_with_one_class 생성 ---------
+    print(f"len(train_dataset): {len(train_dataset)}")
+    
+    # print(f"train_dataset.target_file_paths: {train_dataset.target_file_paths}")
+    mask_paths = [path for path in train_dataset.target_file_paths if path.exists()]
+    # print(f"len(mask_paths): {len(mask_paths)}")
+    indices_with_class = []
+    for i, path in enumerate(mask_paths):
+        mask = np.array(Image.open(path)) # (1024, 2048)
+        if np.any(mask == label_id):
+            indices_with_class.append(i)
+
+    train_dataset_with_one_class = torch.utils.data.Subset(train_dataset, indices_with_class)
+    print(f"len(train_dataset_with_one_class): {len(train_dataset_with_one_class)}")
+    # print(f"indieces with class: {indices_with_class}")
+
+    train_loader_temp = DataLoader(
+        train_dataset_with_one_class,
+        batch_size=cfg.dataset.train_dataloader.batch_size,
+        shuffle=cfg.dataset.train_dataloader.sampler.shuffle,
+        num_workers=cfg.dataset.train_dataloader.num_workers,
+        pin_memory=True,
+    )
+    for idx, (inputs, masks, img_infos) in enumerate(train_loader_temp):
+        # print(f"inputs.shape: {inputs.shape}")
+        # print(f"masks.shape: {masks.shape}")
+        print(f"img_infos['area']: {img_infos['area']}")
+        print(f"img_infos['scale']: {img_infos['scale']}")
+        if idx > 10:
+            break
+        # break
+
+
+    return
+    # -------------------------------------------------------------------------
 
     # train_dataset 길이
     dataset_len = len(train_dataset)

@@ -117,8 +117,8 @@ def _forward_and_save_preds(model, valid_loader, device, output_dir):
         # 각 이미지별 PNG 저장
         for idx in range(preds.shape[0]): # batch 안에 있는 sample의 index
             pred_np = preds[idx].cpu().numpy().astype(np.uint8) # [H, W]
-            # vectorized = np.vectorize(trainId_to_labelId.get) # vectorize화함으로써 trainId_to_labelId.get의 input을 array로 받을 수 있음.
-            vectorized = np.vectorize(trainId_to_labelId_only_car.get) # vectorize화함으로써 trainId_to_labelId.get의 input을 array로 받을 수 있음.
+            vectorized = np.vectorize(trainId_to_labelId.get) # vectorize화함으로써 trainId_to_labelId.get의 input을 array로 받을 수 있음.
+            # vectorized = np.vectorize(trainId_to_labelId_only_car.get) # vectorize화함으로써 trainId_to_labelId.get의 input을 array로 받을 수 있음.
             pred_np_labelId = vectorized(pred_np).astype(np.uint8) # pred_np의 각 pixel을 trainId_to_labelId에 매핑
             # pred_np_labelId = np.vectorize(trainId_to_labelId.get)(pred_np).astype(np.uint8)
             

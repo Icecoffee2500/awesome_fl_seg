@@ -31,7 +31,8 @@ def fed_avg(weights: list, num_samples: list = None):
     w_avg = {k: torch.zeros_like(v) for k, v in weights[0].items()}  # OrderedDict에서 각 텐서를 사용하여 초기화
     
     for k in w_avg.keys():
-        for i in range(len(weights)):
+        # for i in range(len(weights)):
+        for i in range(len(num_samples)):
             w_avg[k] += weights[i][k].detach() * num_samples[i]
         w_avg[k] = torch.div(w_avg[k], sum(num_samples))
     return w_avg
@@ -361,6 +362,7 @@ def main(cfg:DictConfig) -> None:
     client_weights = []
     for epoch in range(cfg.trainer.epochs):
         epoch_start_time = datetime.now()
+        client_weights = []
 
         for i, (model, optimizer, train_loader) in enumerate(zip(model_list, optimizer_list, client_train_loaders)):
             train_loss = train_one_epoch_fl(
@@ -371,7 +373,8 @@ def main(cfg:DictConfig) -> None:
         
         # aggregate weights
         print(f">>> load Fed-Averaged weight to the proxy client model ...")
-        w_glob_client = aggregate(client_weights)
+        # w_glob_client = aggregate(client_weights)
+        w_glob_client = aggregate(client_weights, client_dataset_lengths)
 
         # Broadcast weight to each clients
         print(f">>> load Fed-Averaged weight to the each client model ...")

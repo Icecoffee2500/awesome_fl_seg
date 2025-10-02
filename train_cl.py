@@ -14,6 +14,9 @@ import wandb
 from datetime import datetime
 from torch.optim.lr_scheduler import LinearLR
 from torch.utils.data._utils.collate import default_collate
+from PIL import Image
+import numpy as np
+
 
 ROOT = Path.cwd()
 
@@ -97,8 +100,6 @@ def main(cfg:DictConfig) -> None:
     seed = 42
     set_seed(seed)
 
-    print(f"cfg.dataset.test_pipeline: {cfg.dataset.test_pipeline}")
-
     # 데이터셋 로드
     train_dataset = CityscapesDataset(
         root=cfg.dataset.data_root,
@@ -107,6 +108,19 @@ def main(cfg:DictConfig) -> None:
         target_type=cfg.dataset.target_type,
         pipeline_cfg=cfg.dataset.train_pipeline,
     )
+    print(f"len(train_dataset): {len(train_dataset)}")
+    label_id = 26 # car class id
+    # print(f"train_dataset.target_file_paths: {train_dataset.target_file_paths}")
+    mask_paths = [path for path in train_dataset.target_file_paths if path.exists()]
+    # print(f"len(mask_paths): {len(mask_paths)}")
+    indices_with_class = []
+    for i, path in enumerate(mask_paths):
+        mask = np.array(Image.open(path)) # (1024, 2048)
+        if np.any(mask == label_id):
+            indices_with_class.append(i)
+
+    train_dataset_with_one_class = torch.utils.data.Subset(train_dataset, indices_with_class)
+    print(f"len(train_dataset_with_one_class): {len(train_dataset_with_one_class)}")
     
     val_dataset = CityscapesDataset(
         root=cfg.dataset.data_root,
@@ -115,11 +129,12 @@ def main(cfg:DictConfig) -> None:
         target_type=cfg.dataset.target_type,
         pipeline_cfg=cfg.dataset.test_pipeline,
     )
-
+    print(f"len(val_dataset): {len(val_dataset)}")
     
     # 데이터로더 설정
     train_loader = DataLoader(
-        train_dataset,
+        # train_dataset,
+        train_dataset_with_one_class,
         batch_size=cfg.dataset.train_dataloader.batch_size,
         shuffle=cfg.dataset.train_dataloader.sampler.shuffle,
         num_workers=cfg.dataset.train_dataloader.num_workers,

@@ -44,7 +44,6 @@ class CityscapesDataset(Dataset):
         # ListConfig로 받아서 여기서 transform의 type을 list[dict]로 맞춰준다.
         if isinstance(pipeline_cfg, ListConfig):
             pipeline_cfg = OmegaConf.to_container(pipeline_cfg, resolve=True)
-            print(f"transform type changed! {type(pipeline_cfg)} -> {type(pipeline_cfg)}")
         elif isinstance(pipeline_cfg, list):
             pass
         else:

@@ -371,9 +371,9 @@ def main(cfg:DictConfig) -> None:
         
         # aggregate weights
         print(f">>> load Fed-Averaged weight to the proxy client model ...")
-        w_glob_client = aggregate(client_weights, client_dataset_lengths)
+        w_glob_client = aggregate(client_weights)
 
-        # Braadcast weight to each clients
+        # Broadcast weight to each clients
         print(f">>> load Fed-Averaged weight to the each client model ...")
         for model in model_list:
             model.load_state_dict(w_glob_client)

@@ -222,6 +222,7 @@ def main(cfg:DictConfig) -> None:
     client_weights = []
     for epoch in range(cfg.trainer.epochs):
         epoch_start_time = datetime.now()
+        client_weights = []
 
         for i, (model, optimizer, train_loader) in enumerate(zip(model_list, optimizer_list, train_loaders)):
             train_loss = train_one_epoch_fl(

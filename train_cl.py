@@ -234,26 +234,9 @@ def main(cfg:DictConfig) -> None:
         
 
         # evaluation
-        # if epoch % cfg.trainer.eval_interval == 0:
-        # # if (epoch + 1) % cfg.trainer.eval_interval == 0:
-        #     performance = evaluate(
-        #         model,
-        #         valid_loader,
-        #         device,
-        #         data_root=Path(cfg.dataset.data_root),
-        #         output_dir=preds_dir,
-        #         wdb=wdb,
-        #         epoch=epoch
-        #     )
-        #     if performance > best_performance:
-        #         best_performance = performance
-        #         print(f"[epoch: {epoch}], best_performance: {best_performance}")
-        #         torch.save(model.state_dict(), subdir / "best_model.pth")
-        
-        # evaluation
-        # if epoch % cfg.trainer.eval_interval == 0:
-        if (epoch + 1) % cfg.trainer.eval_interval == 0:
-            performance, performance_car = evaluate_only_car(
+        if epoch % cfg.trainer.eval_interval == 0:
+        # if (epoch + 1) % cfg.trainer.eval_interval == 0:
+            performance = evaluate(
                 model,
                 valid_loader,
                 device,
@@ -262,11 +245,28 @@ def main(cfg:DictConfig) -> None:
                 wdb=wdb,
                 epoch=epoch
             )
-            if performance_car > best_performance:
-                best_performance = performance_car
-                print(f"[epoch: {epoch}], best_performance_car: {best_performance}")
-                print(f"[epoch: {epoch}], performance: {performance}")
-                torch.save(model.state_dict(), subdir / "best_model_car.pth")
+            if performance > best_performance:
+                best_performance = performance
+                print(f"[epoch: {epoch}], best_performance: {best_performance}")
+                torch.save(model.state_dict(), subdir / "best_model.pth")
+        
+        # # evaluation
+        # # if epoch % cfg.trainer.eval_interval == 0:
+        # if (epoch + 1) % cfg.trainer.eval_interval == 0:
+        #     performance, performance_car = evaluate_only_car(
+        #         model,
+        #         valid_loader,
+        #         device,
+        #         data_root=Path(cfg.dataset.data_root),
+        #         output_dir=preds_dir,
+        #         wdb=wdb,
+        #         epoch=epoch
+        #     )
+        #     if performance_car > best_performance:
+        #         best_performance = performance_car
+        #         print(f"[epoch: {epoch}], best_performance_car: {best_performance}")
+        #         print(f"[epoch: {epoch}], performance: {performance}")
+        #         torch.save(model.state_dict(), subdir / "best_model_car.pth")
 
 if __name__ == "__main__":
     main()

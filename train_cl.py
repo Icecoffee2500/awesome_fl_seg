@@ -139,7 +139,7 @@ def main(cfg:DictConfig) -> None:
         shuffle=cfg.dataset.train_dataloader.sampler.shuffle,
         num_workers=cfg.dataset.train_dataloader.num_workers,
         pin_memory=True,
-        collate_fn=custom_collate,
+        # collate_fn=custom_collate,
     )
     
     valid_loader = DataLoader(
@@ -148,7 +148,7 @@ def main(cfg:DictConfig) -> None:
         shuffle=cfg.dataset.val_dataloader.sampler.shuffle,
         num_workers=cfg.dataset.val_dataloader.num_workers,
         pin_memory=True,
-        collate_fn=custom_collate,
+        # collate_fn=custom_collate,
     )
 
     # 모델 로드
@@ -234,7 +234,8 @@ def main(cfg:DictConfig) -> None:
         
 
         # evaluation
-        if epoch % cfg.trainer.eval_interval == 0:
+        # if epoch % cfg.trainer.eval_interval == 0:
+        if (epoch + 1) % cfg.trainer.eval_interval == 0:
             performance =evaluate(
                 model,
                 valid_loader,

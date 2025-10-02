@@ -80,7 +80,7 @@ class CityscapesDataset(Dataset):
                 _img_meta = dict(
                     city=city,
                     file_name=file_path.name,
-                    bboxes=None
+                    # bboxes=None
                 )
                 self.image_metas.append(_img_meta)
                 pure_img_name = re.sub(r'_leftImg8bit$', '', file_path.stem) # 순수한 이미지 이름만 # 예를 들면 # bochum_000000_014803
@@ -109,26 +109,17 @@ class CityscapesDataset(Dataset):
         target = results['target']
         
         # 여기서 bbox scale 정보 추가.
-        # print(f"image.shape: {input.shape}")
-        # print(f"target.shape: {target.shape}")
-        bboxes_dict = instanceid_map_to_bboxes(target[0])
+        # bboxes_dict = instanceid_map_to_bboxes(target[0])
 
         # meta 복사 — 절대 self.image_metas를 워커에서 수정하지 않음
-        meta = dict(self.image_metas[index])
+        # meta = dict(self.image_metas[index])
 
         # convert dict -> list of [id, x1, y1, x2, y2] (일관된 구조)
-        bboxes_list = [[inst_id] + bbox for inst_id, bbox in bboxes_dict.items()]
-        meta['bboxes'] = bboxes_list
-        # if self.image_metas[index]['bboxes'] is None:
-        #     self.image_metas[index]['bboxes'] = bboxes
-        
-        # if self.image_metas[index]['bboxes'] == {}:
-        #     self.image_metas[index]['bboxes'] = bboxes
+        # bboxes_list = [[inst_id] + bbox for inst_id, bbox in bboxes_dict.items()]
+        # meta['bboxes'] = bboxes_list
 
-        # print(f"bboxes: {bboxes}")
-
-        # return input, target, self.image_metas[index]
-        return input, target, meta
+        return input, target, self.image_metas[index]
+        # return input, target, meta
 
     def __len__(self):
         return len(self.image_file_paths)

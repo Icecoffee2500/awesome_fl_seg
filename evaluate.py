@@ -83,6 +83,37 @@ def evaluate(model, valid_loader, device, data_root: Path, output_dir: Path, wdb
     print("\t " + "-" * 33 + "\n")
 
     return metric['averageScoreClasses']
+
+def evaluate_only_car(model, valid_loader, device, data_root: Path, output_dir: Path, wdb=None, epoch: int=None) -> None:    
+    # Forward and save preds for cityscapes evaluation.
+    _forward_and_save_preds(
+        model,
+        valid_loader,
+        device,
+        output_dir
+    )
+
+    # Evaluate through cityscapesscripts.
+    metric = _evaluate(
+        data_root=data_root,
+        output_dir=output_dir
+    )
+    if wdb:
+        wdb.log({"val/mIoU": metric['averageScoreClasses'], "epoch": epoch, "val/IoU_car": metric['classScores']['car']})
+
+    # Print evaluation results.
+    print("\n\t " + "-" * 33)
+    print(f"\t| {'Category':<20} {'IoU':>10} |")
+    print("\t " + "-" * 33)
+    for cls, score in metric['classScores'].items():
+        if np.isnan(score):   # NaN이면 출력하지 않음
+            continue
+        print(f"\t| {cls:<20} {score:>10.4f} |")
+    print("\t " + "-" * 33)
+    print(f"\t| {'Average IoU':<20} {metric['averageScoreClasses']:>10.4f} |")
+    print("\t " + "-" * 33 + "\n")
+
+    return metric['averageScoreClasses'], metric['classScores']['car']
         
 @torch.no_grad()
 def _forward_and_save_preds(model, valid_loader, device, output_dir):

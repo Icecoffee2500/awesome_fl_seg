@@ -16,6 +16,10 @@ outputs/
 performance/
 performance_etri/
 predictions/
+predictions_0/
+predictions_1/
+predictions_2/
+predictions_3/
 visualization/
 wandb/
 notebooks/

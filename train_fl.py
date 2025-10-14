@@ -129,11 +129,11 @@ def main(cfg:DictConfig) -> None:
 
     # 각 클라이언트 dataset 길이 계산
     split_len = dataset_len // num_clients
-    lengths = [split_len] * (num_clients - 1)
-    lengths.append(dataset_len - sum(lengths))  # 나머지는 마지막에
+    client_dataset_lengths = [split_len] * (num_clients - 1)
+    client_dataset_lengths.append(dataset_len - sum(client_dataset_lengths))  # 나머지는 마지막에
 
     # dataset 나누기
-    client_datasets = torch.utils.data.random_split(train_dataset, lengths)
+    client_datasets = torch.utils.data.random_split(train_dataset, client_dataset_lengths)
     
     val_dataset = CityscapesDataset(
         root=cfg.dataset.data_root,
@@ -233,7 +233,8 @@ def main(cfg:DictConfig) -> None:
         
         # aggregate weights
         print(f">>> load Fed-Averaged weight to the proxy client model ...")
-        w_glob_client = aggregate(client_weights)
+        # w_glob_client = aggregate(client_weights)
+        w_glob_client = aggregate(client_weights, client_dataset_lengths)
 
         # Braadcast weight to each clients
         print(f">>> load Fed-Averaged weight to the each client model ...")

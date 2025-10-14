@@ -86,7 +86,7 @@ def main(cfg:DictConfig) -> None:
     now = datetime.now()
     today = now.strftime("%m%d_%H:%M")
     
-    name = "train_cl_"
+    name = "[Resize] train_cl_"
     name += f"{cfg.dataset.name}_crop_size-{cfg.dataset.crop_size}_gpu-{cfg.device_id}"
     name += f"_{today}"
     wdb = wandb

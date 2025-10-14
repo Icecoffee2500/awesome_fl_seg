@@ -99,6 +99,7 @@ def main(cfg:DictConfig) -> None:
     today = now.strftime("%m%d_%H:%M")
     
     name = "train_fl_"
+    name += f"{cfg.fl.target_resolutions}"
     name += f"{cfg.dataset.name}_gpu-{cfg.device_id}"
     name += f"_{today}"
     wdb = wandb

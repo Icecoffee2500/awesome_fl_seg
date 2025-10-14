@@ -133,8 +133,8 @@ def main(cfg:DictConfig) -> None:
     
     # 데이터로더 설정
     train_loader = DataLoader(
-        # train_dataset,
-        train_dataset_with_one_class,
+        train_dataset,
+        # train_dataset_with_one_class,
         batch_size=cfg.dataset.train_dataloader.batch_size,
         shuffle=cfg.dataset.train_dataloader.sampler.shuffle,
         num_workers=cfg.dataset.train_dataloader.num_workers,

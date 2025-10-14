@@ -15,9 +15,12 @@ norm_cfg:
 train_pipeline:
   # - type: LoadImageFromFile
   # - type: LoadAnnotations
-  - type: RandomResize
-    scale: [2048, 1024]
-    ratio_range: [0.5, 2.0]
+  # - type: RandomResize
+  #   scale: [2048, 1024]
+  #   ratio_range: [0.5, 2.0]
+  #   keep_ratio: true
+  - type: Resize
+    scale: ${dataset.test_scale}
     keep_ratio: true
   - type: RandomCrop
     crop_size: ${dataset.crop_size}

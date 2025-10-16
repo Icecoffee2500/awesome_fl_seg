@@ -96,7 +96,7 @@ def main(cfg:DictConfig) -> None:
     # config = OmegaConf.to_container(cfg, resolve=True) # dict로 변환 (resolve=True: 참조 해결)
     
     now = datetime.now()
-    today = now.strftime("%m%d_%H:%M")
+    today = now.strftime("%m%d-%H%M")
     
     name = "train_fl_"
     name += f"{cfg.fl.target_resolutions}"
@@ -215,8 +215,16 @@ def main(cfg:DictConfig) -> None:
     perf_dir.mkdir(parents=True, exist_ok=True)
 
     subdir_name = f"fl_{cfg.device_id}"
-    subdir = perf_dir / today / subdir_name
+    # save_name = f"fl_{cfg.fl.target_resolutions}"
+    
+    # subdir = perf_dir / today / subdir_name
+    subdir = perf_dir / today
     subdir.mkdir(parents=True, exist_ok=True)
+
+    save_name = "fl_"
+    for _, res in cfg.fl.target_resolutions:
+        save_name += f"{res[0]}x{res[1]}_"
+    save_name += f"gpu{cfg.device_id}"
 
     # train
     loss_list = []
@@ -247,7 +255,7 @@ def main(cfg:DictConfig) -> None:
         elapsed = datetime.now() - epoch_start_time
         minutes, seconds = divmod(elapsed.total_seconds(), 60)
 
-        print(f"Epoch [{epoch+1}/{cfg.trainer.epochs}]: Epoch Loss: {train_loss:.4f} | Elapsed Time: {int(minutes)}m {seconds:.2f}s")
+        print(f"Epoch [{epoch + 1}/{cfg.trainer.epochs}]: Epoch Loss: {train_loss:.4f} | Elapsed Time: {int(minutes)}m {seconds:.2f}s")
         for scheduler in scheduler_list:
             scheduler.step()
         wandb.log({"train/loss": train_loss, "epoch": epoch})
@@ -269,8 +277,10 @@ def main(cfg:DictConfig) -> None:
                 # #TODO: checkpoint 저장 경로 폴더 날짜별로 만들어야 함.
                 # torch.save(model.state_dict(), perf_dir / f"best_model_fl.pth")
                 best_performance = performance
-                print(f"[[epoch: {epoch}]], best_performance: {best_performance}")
-                torch.save(global_model.state_dict(), subdir / "best_model_fl.pth")
+                # torch.save(global_model.state_dict(), subdir / "best_model_fl.pth")
+                torch.save(global_model.state_dict(), subdir / f"{save_name}_best_model.pth")
+            
+            print(f"[[epoch: {epoch}]], best_performance: {best_performance}")
 
 if __name__ == "__main__":
     main()

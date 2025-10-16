@@ -221,7 +221,7 @@ def main(cfg:DictConfig) -> None:
     subdir.mkdir(parents=True, exist_ok=True)
 
     save_name = "fl_"
-    for _, res in cfg.fl.target_resolutions:
+    for res in cfg.fl.target_resolutions.values():
         save_name += f"{res[0]}x{res[1]}_"
     save_name += f"gpu{cfg.device_id}"
 

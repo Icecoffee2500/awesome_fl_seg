@@ -183,7 +183,7 @@ def main(cfg:DictConfig) -> None:
     perf_dir = ROOT / "performance"
     perf_dir.mkdir(parents=True, exist_ok=True)
     # subdir_name = f"cl_{cfg.dataset.crop_size[0]}x{cfg.dataset.crop_size[1]}_gpu{cfg.device_id}"
-    save_name = f"cl_{cfg.dataset.crop_size[0]}x{cfg.dataset.crop_size[1]}_gpu{cfg.device_id}"
+    save_name = f"cl_{cfg.dataset.crop_size[0]}x{cfg.dataset.crop_size[1]}_gpu{cfg.device_id}_best_model.pth"
     # subdir = perf_dir / today / subdir_name
     subdir = perf_dir / today
     subdir.mkdir(parents=True, exist_ok=True)
@@ -219,7 +219,7 @@ def main(cfg:DictConfig) -> None:
             if performance > best_performance:
                 best_performance = performance
                 # torch.save(model.state_dict(), subdir / "best_model.pth")
-                torch.save(model.state_dict(), subdir / f"{save_name}_best_model.pth")
+                torch.save(model.state_dict(), subdir / save_name)
             
             print(f"[epoch: {epoch}], best_performance: {best_performance}")
         

@@ -223,7 +223,7 @@ def main(cfg:DictConfig) -> None:
     save_name = "fl_"
     for res in cfg.fl.target_resolutions.values():
         save_name += f"{res[0]}x{res[1]}_"
-    save_name += f"gpu{cfg.device_id}"
+    save_name += f"gpu{cfg.device_id}_best_model.pth"
 
     # train
     loss_list = []
@@ -277,7 +277,7 @@ def main(cfg:DictConfig) -> None:
                 # torch.save(model.state_dict(), perf_dir / f"best_model_fl.pth")
                 best_performance = performance
                 # torch.save(global_model.state_dict(), subdir / "best_model_fl.pth")
-                torch.save(global_model.state_dict(), subdir / f"{save_name}_best_model.pth")
+                torch.save(global_model.state_dict(), subdir / save_name)
             
             print(f"[epoch: {epoch}], best_performance: {best_performance}")
 

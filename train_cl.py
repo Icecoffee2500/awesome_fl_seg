@@ -84,7 +84,7 @@ def main(cfg:DictConfig) -> None:
     # config = OmegaConf.to_container(cfg, resolve=True) # dict로 변환 (resolve=True: 참조 해결)
     
     now = datetime.now()
-    today = now.strftime("%m%d_%H:%M")
+    today = now.strftime("%m%d-%H%M")
     
     name = "[Resize] train_cl_"
     name += f"{cfg.dataset.name}_crop_size-{cfg.dataset.crop_size}_gpu-{cfg.device_id}"
@@ -182,29 +182,11 @@ def main(cfg:DictConfig) -> None:
     best_performance = 0.0
     perf_dir = ROOT / "performance"
     perf_dir.mkdir(parents=True, exist_ok=True)
-    subdir_name = f"{cfg.dataset.crop_size[0]}_{cfg.dataset.crop_size[1]}_{cfg.device_id}"
-    subdir = perf_dir / today / subdir_name
+    # subdir_name = f"cl_{cfg.dataset.crop_size[0]}x{cfg.dataset.crop_size[1]}_gpu{cfg.device_id}"
+    save_name = f"cl_{cfg.dataset.crop_size[0]}x{cfg.dataset.crop_size[1]}_gpu{cfg.device_id}"
+    # subdir = perf_dir / today / subdir_name
+    subdir = perf_dir / today
     subdir.mkdir(parents=True, exist_ok=True)
-
-    # print("Simulate LR progression for first epochs")
-    # print(f"scheduler.last_epoch: {scheduler.last_epoch}")
-    # vals_last_lr = scheduler.get_last_lr()
-    # print(f"scheduler.get_last_lr() returns:", [format(v, ".17g") for v in scheduler.get_last_lr()])
-    # for epoch in range(0, 20):
-    #     # lrs_before = [pg['lr'] for pg in optimizer.param_groups]
-    #     # print(f"Epoch {epoch+1:2d} lr_before: {lrs_before}")
-
-    #     # optimizer.step()
-    #     scheduler.step()
-
-    #     vals_last_lr = scheduler.get_last_lr()
-    #     print(f"scheduler.last_epoch: {scheduler.last_epoch}")
-    #     print("scheduler.get_last_lr() returns:", [format(v, ".17g") for v in vals_last_lr]) # -> step 후에 업데이트됨.
-
-    #     # lrs_after = [pg['lr'] for pg in optimizer.param_groups]
-    #     # print(f"Epoch {epoch+1:2d} lr_after : {lrs_after}\n")
-    
-    # return
     
     # train
     for epoch in range(cfg.trainer.epochs):
@@ -214,21 +196,10 @@ def main(cfg:DictConfig) -> None:
 
         elapsed = datetime.now() - epoch_start_time
         minutes, seconds = divmod(elapsed.total_seconds(), 60)
-        # print(f"train_loss: {train_loss}")
-        # print(f"minutes: {minutes}")
-        # print(f"seconds: {seconds}")
 
-        print(f"Epoch [{epoch+1}/{cfg.trainer.epochs}]: Epoch Loss: {train_loss:.4f} | Elapsed Time: {int(minutes)}m {seconds:.2f}s")
-
-        # -- DEBUG: print LR before stepping (this is the LR used during this epoch)
-        # lrs_before = [pg['lr'] for pg in optimizer.param_groups]
-        # print(f"[Epoch {epoch+1}] lr_before_step: {lrs_before}, train_loss: {train_loss:.6f}")
+        print(f"Epoch [{epoch + 1}/{cfg.trainer.epochs}]: Epoch Loss: {train_loss:.4f} | Elapsed Time: {int(minutes)}m {seconds:.2f}s")
 
         scheduler.step()
-
-        # -- DEBUG: print LR after stepping (this is the LR used during the next epoch)
-        # lrs_after = [pg['lr'] for pg in optimizer.param_groups]
-        # print(f"[Epoch {epoch+1}] lr_after_step: {lrs_after}")
 
         wandb.log({"train/loss": train_loss, "epoch": epoch})
         
@@ -247,8 +218,10 @@ def main(cfg:DictConfig) -> None:
             )
             if performance > best_performance:
                 best_performance = performance
-                print(f"[epoch: {epoch}], best_performance: {best_performance}")
-                torch.save(model.state_dict(), subdir / "best_model.pth")
+                # torch.save(model.state_dict(), subdir / "best_model.pth")
+                torch.save(model.state_dict(), subdir / f"{save_name}_best_model.pth")
+            
+            print(f"[epoch: {epoch}], best_performance: {best_performance}")
         
         # # evaluation
         # # if epoch % cfg.trainer.eval_interval == 0:

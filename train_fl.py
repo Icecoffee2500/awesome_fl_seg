@@ -214,8 +214,7 @@ def main(cfg:DictConfig) -> None:
     perf_dir = ROOT / "performance"
     perf_dir.mkdir(parents=True, exist_ok=True)
 
-    subdir_name = f"fl_{cfg.device_id}"
-    # save_name = f"fl_{cfg.fl.target_resolutions}"
+    # subdir_name = f"fl_{cfg.device_id}"
     
     # subdir = perf_dir / today / subdir_name
     subdir = perf_dir / today
@@ -280,7 +279,7 @@ def main(cfg:DictConfig) -> None:
                 # torch.save(global_model.state_dict(), subdir / "best_model_fl.pth")
                 torch.save(global_model.state_dict(), subdir / f"{save_name}_best_model.pth")
             
-            print(f"[[epoch: {epoch}]], best_performance: {best_performance}")
+            print(f"[epoch: {epoch}], best_performance: {best_performance}")
 
 if __name__ == "__main__":
     main()

@@ -11,6 +11,7 @@ from torch.utils.data import Dataset
 from PIL import Image
 import numpy as np
 import torch
+from copy import deepcopy
 from .transforms.pipelines import Compose
 
 imread_flags = {
@@ -40,7 +41,7 @@ class CityscapesDatasetOneClass(Dataset):
         mode: str = 'gtFine',
         target_type: str = 'semantic',
         pipeline_cfg: Union[list[dict], ListConfig[dict]] = None,
-        train_id: int = 0, # 0~18
+        # train_id: int = 0, # 0~18
     ):
         # ListConfig로 받아서 여기서 transform의 type을 list[dict]로 맞춰준다.
         if isinstance(pipeline_cfg, ListConfig):
@@ -62,7 +63,7 @@ class CityscapesDatasetOneClass(Dataset):
         self.target_file_paths = []
         self.image_metas = []
         self.bboxes = []
-        self.train_id = train_id
+        self.train_id_len = 19
 
         if split not in ['train', 'test', 'val']:
             raise ValueError('Invalid split for mode! Please use split="train", split="test"'
@@ -82,8 +83,8 @@ class CityscapesDatasetOneClass(Dataset):
                 _img_meta = dict(
                     city=city,
                     file_name=file_path.name,
-                    area=0,
-                    scale=0.0
+                    area={i: 0 for i in range(self.train_id_len)},
+                    scale={i: 0.0 for i in range(self.train_id_len)},
                 )
                 self.image_metas.append(_img_meta)
                 pure_img_name = re.sub(r'_leftImg8bit$', '', file_path.stem) # 순수한 이미지 이름만 # 예를 들면 # bochum_000000_014803
@@ -115,9 +116,10 @@ class CityscapesDatasetOneClass(Dataset):
         image_size = height * width
 
         # for문으로 전체 train_id (0~18)을 다 갖다 놓으면 되겠다.
-        area = int((target==self.train_id).sum().item())
-        self.image_metas[index]['area'] = area
-        self.image_metas[index]['scale'] = float(area) / image_size
+        for i in range(self.train_id_len):
+            area = int((target==i).sum().item())
+            self.image_metas[index]['area'][i] = area
+            self.image_metas[index]['scale'][i] = float(area) / image_size
         
         # 여기서 bbox scale 정보 추가.
         # bboxes_dict = instanceid_map_to_bboxes(target[0])

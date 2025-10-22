@@ -87,13 +87,13 @@ def main(cfg:DictConfig) -> None:
     name += "no_RandomResize_no_RandomCrop_"
     name += f"{cfg.dataset.name}_gpu-{cfg.device_id}"
     name += f"_{today}"
-    # wdb = wandb
-    # wdb.init(
-    #     config=OmegaConf.to_container(cfg, resolve=True),
-    #     project="Segmentation training (FL)",
-    #     name = name,
-    # )
-    wdb = None # 임시 # 다른거 print해보는 용도
+    wdb = wandb
+    wdb.init(
+        config=OmegaConf.to_container(cfg, resolve=True),
+        project="Segmentation training (FL)",
+        name = name,
+    )
+    # wdb = None # 임시 # 다른거 print해보는 용도
 
     # Set random seed for reproducibility from the main entrypoint
     seed = 42

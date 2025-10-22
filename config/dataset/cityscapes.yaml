@@ -5,6 +5,7 @@ crop_size: [1024, 1024]
 mode: gtFine
 target_type: semantic
 test_scale: [2048, 1024]
+train_scale: [1536, 768]
 
 # imagenet mean/std에 255를 곱한 값.
 # 정규화되지 않은 pixel 값을 정규화하기 위해서 사용. (0-255)
@@ -20,7 +21,7 @@ train_pipeline:
   #   ratio_range: [0.5, 2.0]
   #   keep_ratio: true
   - type: Resize
-    scale: ${dataset.test_scale}
+    scale: ${dataset.train_scale}
     keep_ratio: true
   # - type: RandomCrop
   #   crop_size: ${dataset.crop_size}

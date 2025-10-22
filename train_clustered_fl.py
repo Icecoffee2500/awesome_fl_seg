@@ -45,37 +45,17 @@ def aggregate(weights, num_samples=None):
     
     return w_glob_client
 
-def train_one_epoch_fl(model, optimizer, criterion, train_loader, device, curr_epoch, max_epochs, client_idx, target_resolutions):
+def train_one_epoch_fl(model, optimizer, criterion, train_loader, device, curr_epoch, max_epochs, client_idx):
     model.train()
     epoch_loss = 0.0
     iter_start_time = datetime.now()
 
-    # client별 target resolution 설정
-    # target_resolutions = {
-    #     0: (1024, 1024),
-    #     1: (768, 768),
-    #     2: (512, 512)
-    #     # 0: (1024, 1024),
-    #     # 1: (1024, 1024),
-    #     # 2: (1024, 1024)
-    # }
-    # target_h, target_w = target_resolutions.get(client_idx, (1024, 1024))
-
     for idx, (inputs, masks, img_infos) in enumerate(train_loader):
-        # # client별 resolution으로 resize
-        # if (inputs.shape[2], inputs.shape[3]) != (target_h, target_w):
-        #     inputs = F.interpolate(inputs, size=(target_h, target_w), mode='bilinear', align_corners=False)
-        #     masks = F.interpolate(masks.float(), size=(target_h, target_w), mode='nearest').long()
-        # print(inputs.shape)
-        # print(masks.shape)
         inputs = inputs.to(device)
-        # masks = masks.to(device)
         masks = masks.to(device).squeeze(1)  # [B, H, W]
 
         optimizer.zero_grad()
-
         outputs = model(inputs)
-
         loss = criterion(outputs, masks)
         loss.backward()
         optimizer.step()
@@ -86,7 +66,7 @@ def train_one_epoch_fl(model, optimizer, criterion, train_loader, device, curr_e
             elapsed = datetime.now() - iter_start_time
             minutes, seconds = divmod(elapsed.total_seconds(), 60)
             # loss 높게 나올 때 어느 class인지 확인하기
-            print(f"Client {client_idx+1} | Epoch [{curr_epoch+1}/{max_epochs}][{idx}/{len(train_loader)}]: "
+            print(f"Client {client_idx + 1} | Epoch [{curr_epoch + 1}/{max_epochs}][{idx}/{len(train_loader)}]: "
                 f"Current Loss: {loss.item():.4f} | Elapsed Time: {int(minutes)}m {seconds:.2f}s")
 
             # print(f"Epoch [{curr_epoch+1}/{max_epochs}][{idx}/{len(train_loader)}]: Loss: {loss.item():.4f} | Time: {datetime.now() - epoch_start_time:.2f}s")

@@ -95,13 +95,13 @@ uv run -m test_cl 'test_checkpoint_path=performance/1014_19:31/fl_3/best_model_f
 uv run -m test_cl 'test_checkpoint_path=performance/1014_19:31/fl_3/best_model_fl.pth' 'test_data_root=data/cityscapes_512x256' 'dataset.test_scale=[512, 256]'
 
 # 512 512 512
-uv run -m test_cl 'test_checkpoint_path=performance/1015_17:57/fl_3/best_model_fl.pth' 'test_data_root=data/cityscapes' 'dataset.test_scale=[2048, 1024]'
-uv run -m test_cl 'test_checkpoint_path=performance/1015_17:57/fl_3/best_model_fl.pth' 'test_data_root=data/cityscapes_1536x768' 'dataset.test_scale=[1536, 768]'
-uv run -m test_cl 'test_checkpoint_path=performance/1015_17:57/fl_3/best_model_fl.pth' 'test_data_root=data/cityscapes_1024x512' 'dataset.test_scale=[1024, 512]'
-uv run -m test_cl 'test_checkpoint_path=performance/1015_17:57/fl_3/best_model_fl.pth' 'test_data_root=data/cityscapes_896x448' 'dataset.test_scale=[896, 448]'
-uv run -m test_cl 'test_checkpoint_path=performance/1015_17:57/fl_3/best_model_fl.pth' 'test_data_root=data/cityscapes_768x384' 'dataset.test_scale=[768, 384]'
-uv run -m test_cl 'test_checkpoint_path=performance/1015_17:57/fl_3/best_model_fl.pth' 'test_data_root=data/cityscapes_640x320' 'dataset.test_scale=[640, 320]'
-uv run -m test_cl 'test_checkpoint_path=performance/1015_17:57/fl_3/best_model_fl.pth' 'test_data_root=data/cityscapes_512x256' 'dataset.test_scale=[512, 256]'
+uv run -m test_cl 'test_checkpoint_path=performance/1015_17:57/fl_0/best_model_fl.pth' 'test_data_root=data/cityscapes' 'dataset.test_scale=[2048, 1024]'
+uv run -m test_cl 'test_checkpoint_path=performance/1015_17:57/fl_0/best_model_fl.pth' 'test_data_root=data/cityscapes_1536x768' 'dataset.test_scale=[1536, 768]'
+uv run -m test_cl 'test_checkpoint_path=performance/1015_17:57/fl_0/best_model_fl.pth' 'test_data_root=data/cityscapes_1024x512' 'dataset.test_scale=[1024, 512]'
+uv run -m test_cl 'test_checkpoint_path=performance/1015_17:57/fl_0/best_model_fl.pth' 'test_data_root=data/cityscapes_896x448' 'dataset.test_scale=[896, 448]'
+uv run -m test_cl 'test_checkpoint_path=performance/1015_17:57/fl_0/best_model_fl.pth' 'test_data_root=data/cityscapes_768x384' 'dataset.test_scale=[768, 384]'
+uv run -m test_cl 'test_checkpoint_path=performance/1015_17:57/fl_0/best_model_fl.pth' 'test_data_root=data/cityscapes_640x320' 'dataset.test_scale=[640, 320]'
+uv run -m test_cl 'test_checkpoint_path=performance/1015_17:57/fl_0/best_model_fl.pth' 'test_data_root=data/cityscapes_512x256' 'dataset.test_scale=[512, 256]'
 
 # 384 384 384
 uv run -m test_cl 'test_checkpoint_path=performance/1015_06:15/fl_1/best_model_fl.pth' 'test_data_root=data/cityscapes' 'dataset.test_scale=[2048, 1024]'

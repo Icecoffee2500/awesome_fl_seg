@@ -23,7 +23,7 @@ imread_flags = {
     IMREAD_IGNORE_ORIENTATION | IMREAD_GRAYSCALE
 }
 
-class CityscapesDatasetOneClass(Dataset):
+class CityscapesDatasetMultiClass(Dataset):
     """Cityscapes <http://www.cityscapes-dataset.com/> Dataset.
     
     Parameters:
@@ -65,6 +65,8 @@ class CityscapesDatasetOneClass(Dataset):
         self.bboxes = []
         self.train_id_len = 19
 
+        self.scale_temp = {i: 0.0 for i in range(self.train_id_len)}
+
         if split not in ['train', 'test', 'val']:
             raise ValueError('Invalid split for mode! Please use split="train", split="test"'
                              ' or split="val"')
@@ -99,11 +101,27 @@ class CityscapesDatasetOneClass(Dataset):
             tuple: (image, target) where target is a tuple of all target types if target_type is a list with more
             than one item. Otherwise target is a json object if target_type="polygon", else the image segmentation.
         """
-        image = Image.open(self.image_file_paths[index]).convert('RGB') # 여기서만 사용됨. (Image.open, Image.convert)
-        target = Image.open(self.target_file_paths[index]) # 여기서만 사용됨. (Image.open)
+        # image = Image.open(self.image_file_paths[index]).convert('RGB') # 여기서만 사용됨. (Image.open, Image.convert)
+        # target = Image.open(self.target_file_paths[index]) # 여기서만 사용됨. (Image.open)
 
-        image = np.array(image) # (1024, 2048, 3)
-        target = np.array(target) # (1024, 2048)
+        # image = np.array(image) # (1024, 2048, 3)
+        # target = np.array(target) # (1024, 2048)        
+
+        # 파일 읽기 (cv2)
+        img_path = str(self.image_file_paths[index])
+        mask_path = str(self.target_file_paths[index])
+
+        # color image 읽기 (BGR) -> 필요 시 RGB로 바꿔주자
+        image = cv2.imread(img_path, cv2.IMREAD_COLOR)  # shape (H, W, 3), dtype=uint8
+        # convert to RGB if your pipeline expects RGB
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+        # mask는 그레이스케일로 바로 읽기
+        target = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)  # shape (H, W)
+        
+        # print(f"image, target: {image.shape} / {target.shape}")
+        # print(f"[type] image, target: {type(image)} / {type(target)}")
+
         results = dict(img=image, gt_seg_map=target)
 
         if self.transform:
@@ -112,27 +130,53 @@ class CityscapesDatasetOneClass(Dataset):
         input = results['input']
         target = results['target']
 
-        height, width = target.shape[1], target.shape[2]
-        image_size = height * width
+        ignore_label = 255
 
-        # for문으로 전체 train_id (0~18)을 다 갖다 놓으면 되겠다.
-        for i in range(self.train_id_len):
-            area = int((target==i).sum().item())
-            self.image_metas[index]['area'][i] = area
-            self.image_metas[index]['scale'][i] = float(area) / image_size
-        
-        # 여기서 bbox scale 정보 추가.
-        # bboxes_dict = instanceid_map_to_bboxes(target[0])
+        if self.image_metas[index]['scale'] == self.scale_temp:
+            # 1) ensure target shape is (H, W)
+            if target.dim() == 3 and target.shape[0] == 1:
+                target = target.squeeze(0) # (1, H, W) -> (H, W)
+            
+            # 2) flatten -> 1D tensor (torch equivalent of ravel/flatten)
+            flat = target.view(-1)  # shape: (H * W,)
 
-        # meta 복사 — 절대 self.image_metas를 워커에서 수정하지 않음
-        # meta = dict(self.image_metas[index])
+            # 3) mask out ignore label (boolean mask)
+            mask_valid = (flat != ignore_label)  # dtype: torch.bool
 
-        # convert dict -> list of [id, x1, y1, x2, y2] (일관된 구조)
-        # bboxes_list = [[inst_id] + bbox for inst_id, bbox in bboxes_dict.items()]
-        # meta['bboxes'] = bboxes_list
+            # 4) number of valid pixels
+            num_valid = int(mask_valid.sum().item())
+
+            # 5) if no valid pixels -> zero counts
+            if num_valid == 0:
+                counts = torch.zeros(self.train_id_len, dtype=torch.long)
+            else:
+                valid = flat[mask_valid].to(torch.long)  # 1D long tensor of labels (only valid pixels)
+                # 6) bincount: very fast C/CUDA kernel in PyTorch
+                counts = torch.bincount(valid, minlength=self.train_id_len)
+                counts = counts[:self.train_id_len]  # ensure length exactly train_id_len
+            
+            # 7) compute scales (float ratios). Avoid zero division by using max(1, num_valid)
+            scales = counts.float() / (num_valid if num_valid > 0 else 1)
+
+            # 8) store in metadata (convert to python lists if you want serializable types)
+            self.image_metas[index]['area'] = counts.cpu().tolist()
+            self.image_metas[index]['scale'] = scales.cpu().tolist()
+
+        # print(f"input / target: {input.shape} / {target.shape}")
+
+        # print(f"self.image_metas[index]['area']: {self.image_metas[index]['area']}")
+        # print(f"self.image_metas[index]['scale']: {self.image_metas[index]['scale']}")
+
+        # height, width = target.shape[1], target.shape[2]
+        # image_size = height * width
+
+        # # for문으로 전체 train_id (0~18)을 다 갖다 놓으면 되겠다.
+        # for i in range(self.train_id_len):
+        #     area = int((target==i).sum().item())
+        #     self.image_metas[index]['area'][i] = area
+        #     self.image_metas[index]['scale'][i] = float(area) / image_size
 
         return input, target, self.image_metas[index]
-        # return input, target, meta
 
     def __len__(self):
         return len(self.image_file_paths)

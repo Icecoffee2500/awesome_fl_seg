@@ -3,6 +3,7 @@ import copy
 import torch
 from segmentation.datasets.cityscapes import CityscapesDataset
 from segmentation.datasets.cityscapes_one_class import CityscapesDatasetOneClass
+from segmentation.datasets.cityscapes_multiple_classes import CityscapesDatasetMultiClass
 import hydra
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader
@@ -83,14 +84,16 @@ def main(cfg:DictConfig) -> None:
     today = now.strftime("%m%d-%H%M")
     
     name = "train_fl_"
+    name += "no_RandomResize_no_RandomCrop_"
     name += f"{cfg.dataset.name}_gpu-{cfg.device_id}"
     name += f"_{today}"
-    wdb = wandb
-    wdb.init(
-        config=OmegaConf.to_container(cfg, resolve=True),
-        project="Segmentation training (FL)",
-        name = name,
-    )
+    # wdb = wandb
+    # wdb.init(
+    #     config=OmegaConf.to_container(cfg, resolve=True),
+    #     project="Segmentation training (FL)",
+    #     name = name,
+    # )
+    wdb = None # 임시 # 다른거 print해보는 용도
 
     # Set random seed for reproducibility from the main entrypoint
     seed = 42
@@ -111,40 +114,56 @@ def main(cfg:DictConfig) -> None:
     #     target_type=cfg.dataset.target_type,
     #     pipeline_cfg=cfg.dataset.train_pipeline,
     # )
-    train_dataset = CityscapesDatasetOneClass(
+    train_dataset = CityscapesDatasetMultiClass(
         root=cfg.dataset.data_root,
         split="train",
         mode=cfg.dataset.mode,
         target_type=cfg.dataset.target_type,
         pipeline_cfg=cfg.dataset.train_pipeline,
-        train_id=train_id,
     )
 
     # train_dataset에서 특정 class만 뽑아서 train_dataset_with_one_class 생성 ---------
     print(f"len(train_dataset): {len(train_dataset)}")
-    
-    # print(f"train_dataset.target_file_paths: {train_dataset.target_file_paths}")
-    mask_paths = [path for path in train_dataset.target_file_paths if path.exists()]
-    # print(f"len(mask_paths): {len(mask_paths)}")
-    indices_with_class = []
-    for i, path in enumerate(mask_paths):
-        mask = np.array(Image.open(path)) # (1024, 2048)
-        if np.any(mask == label_id):
-            indices_with_class.append(i)
 
-    train_dataset_with_one_class = torch.utils.data.Subset(train_dataset, indices_with_class)
-    print(f"len(train_dataset_with_one_class): {len(train_dataset_with_one_class)}")
-    # print(f"indieces with class: {indices_with_class}")
+    
+    # 한 클래스만 뽑아내는 코드 (지금은 필요없음)
+    
+    # # print(f"train_dataset.target_file_paths: {train_dataset.target_file_paths}")
+    # mask_paths = [path for path in train_dataset.target_file_paths if path.exists()] # mask들의 파일 경로
+    # # print(f"len(mask_paths): {len(mask_paths)}")
+    # indices_with_class = []
+    # for i, path in enumerate(mask_paths):
+    #     mask = np.array(Image.open(path)) # (1024, 2048)
+    #     if np.any(mask == label_id): # 원하는 class의 Object가 하나라도 있는 인덱스만 추가.
+    #         indices_with_class.append(i)
+
+    # train_dataset_with_one_class = torch.utils.data.Subset(train_dataset, indices_with_class)
+    # print(f"len(train_dataset_with_one_class): {len(train_dataset_with_one_class)}")
+    # # print(f"indieces with class: {indices_with_class}")
 
     # 방법 A: dataset에 인덱스로 접근 가능한 경우 (권장)
     scales = []
+    max_scales_kv = []
     dataset_indices = []   # dataset index와 1:1 매핑을 유지
+
+    print("iteration start!")
+    iteration_start_time = datetime.now()
+
     for idx in range(len(train_dataset)):
         _, _, img_info = train_dataset[idx]
-        scale = img_info['scale']
-        scales.append(scale)
+        # scale = img_info['scale']
+        max_scale = max(img_info['scale'])
+        # print(f"max_scale: {max_scale}")
+        # max_scale_kv = max(scale.items(), key=lambda x: x[1])
+        # max_scales_kv.append(max_scale_kv)
+        # scales.append(max_scale_kv[1])
+        scales.append(max_scale)
         dataset_indices.append(idx)
     
+    iter_elapsed_time = datetime.now() - iteration_start_time
+    minutes, seconds = divmod(iter_elapsed_time.total_seconds(), 60)
+    print(f"Elapsed Time: {int(minutes)}m {seconds:.2f}s")
+
     scales = np.array(scales)
     print(f"scales: {scales}")
     scales_np = scales.reshape(-1, 1)   # shape (N,1)
@@ -163,7 +182,7 @@ def main(cfg:DictConfig) -> None:
     # original cluster idx -> rank(0=small,1=mid,2=large)
     rank_of_cluster = {int(orig_idx): int(rank) for rank, orig_idx in enumerate(order)}
 
-    # labels remap: original label -> rank label (0=small,1=mid,2=large)
+    # labels remap: original label -> rank label (0=small, 1=mid, 2=large)
     labels_sorted = np.array([rank_of_cluster[int(l)] for l in labels])
 
     # build group indices
@@ -176,12 +195,6 @@ def main(cfg:DictConfig) -> None:
     counts = Counter(labels_sorted)
     print(f"After remapping (KMeans -> small / mid / large): {counts}")
     print(f"Sorted centroids (small -> large): {centroids[order]}")
-
-    # # 그룹별 인덱스 (dataset 인덱스)
-    # group_indices = {0: [], 1: [], 2: []}
-    # for i, lab in enumerate(labels):
-    #     ds_idx = dataset_indices[i]   # dataset index corresponding to the i-th collected scale
-    #     group_indices[int(lab)].append(ds_idx)
 
     # 확인
     for g in [0, 1, 2]:
@@ -196,45 +209,6 @@ def main(cfg:DictConfig) -> None:
         client_dataset_lengths.append(len(client_datasets[g]))
 
     print(f"client_dataset_lengths: {client_dataset_lengths}")
-
-    # train_loader_temp = DataLoader(
-    #     train_dataset_with_one_class,
-    #     batch_size=cfg.dataset.train_dataloader.batch_size,
-    #     shuffle=cfg.dataset.train_dataloader.sampler.shuffle,
-    #     num_workers=cfg.dataset.train_dataloader.num_workers,
-    #     pin_memory=True,
-    # )
-    # for idx, (inputs, masks, img_infos) in enumerate(train_loader_temp):
-    #     # print(f"inputs.shape: {inputs.shape}")
-    #     # print(f"masks.shape: {masks.shape}")
-    #     print(f"img_infos['area']: {img_infos['area']}")
-    #     print(f"img_infos['scale']: {img_infos['scale']}")
-    #     if idx > 10:
-    #         break
-    #     # break
-
-
-    # return
-    # -------------------------------------------------------------------------
-
-    # # train_dataset 길이
-    # dataset_len = len(train_dataset)
-
-    # # 클라이언트 수
-    # num_clients = 3
-
-    # # 각 클라이언트 dataset 길이 계산
-    # split_len = dataset_len // num_clients
-    # lengths = [split_len] * (num_clients - 1)
-    # lengths.append(dataset_len - sum(lengths))  # 나머지는 마지막에
-
-    # # dataset 나누기
-    # client_datasets = torch.utils.data.random_split(train_dataset, lengths)
-
-    # 사용 예시
-    # client1_dataset = client_datasets[0]
-    # client2_dataset = client_datasets[1]
-    # client3_dataset = client_datasets[2]
     
     val_dataset = CityscapesDataset(
         root=cfg.dataset.data_root,
@@ -244,25 +218,6 @@ def main(cfg:DictConfig) -> None:
         pipeline_cfg=cfg.dataset.test_pipeline,
     )
 
-    # 데이터로더 설정
-    # train_loader = DataLoader(
-    #     train_dataset,
-    #     batch_size=cfg.dataset.train_dataloader.batch_size,
-    #     shuffle=cfg.dataset.train_dataloader.sampler.shuffle,
-    #     num_workers=cfg.dataset.train_dataloader.num_workers,
-    #     pin_memory=True,
-    # )
-    # train_loaders = []
-    # for i in range(num_clients):
-    #     train_loaders.append(
-    #         DataLoader(
-    #             client_datasets[i],
-    #             batch_size=cfg.dataset.train_dataloader.batch_size,
-    #             shuffle=cfg.dataset.train_dataloader.sampler.shuffle,
-    #             num_workers=cfg.dataset.train_dataloader.num_workers,
-    #             pin_memory=True,
-    #         )
-    # )
     client_train_loaders = []
     for g in [0, 1, 2]:
         client_train_loaders.append(
@@ -274,16 +229,6 @@ def main(cfg:DictConfig) -> None:
                 pin_memory=True,
             )
         )
-    # for i in range(client_datasets.keys()):
-    #     train_loaders.append(
-    #         DataLoader(
-    #             client_datasets[i],
-    #             batch_size=cfg.dataset.train_dataloader.batch_size,
-    #             shuffle=cfg.dataset.train_dataloader.sampler.shuffle,
-    #             num_workers=cfg.dataset.train_dataloader.num_workers,
-    #             pin_memory=True,
-    #         )
-    # )
     
     valid_loader = DataLoader(
         val_dataset,
@@ -338,9 +283,10 @@ def main(cfg:DictConfig) -> None:
     subdir = perf_dir / today
     subdir.mkdir(parents=True, exist_ok=True)
 
-    save_name = "fl_"
-    for res in cfg.fl.target_resolutions.values():
-        save_name += f"{res[0]}x{res[1]}_"
+    # save_name = "fl_"
+    save_name = "fl_no_RandomResize_no_RandomCrop"
+    # for res in cfg.fl.target_resolutions.values():
+    #     save_name += f"{res[0]}x{res[1]}_"
     save_name += f"gpu{cfg.device_id}_best_model.pth"
 
     # train
@@ -352,7 +298,7 @@ def main(cfg:DictConfig) -> None:
 
         for i, (model, optimizer, train_loader) in enumerate(zip(model_list, optimizer_list, client_train_loaders)):
             train_loss = train_one_epoch_fl(
-                model, optimizer, criterion, train_loader, device, epoch, cfg.trainer.epochs, client_idx=i, target_resolutions=cfg.fl.target_resolutions
+                model, optimizer, criterion, train_loader, device, epoch, cfg.trainer.epochs, client_idx=i
             )
             loss_list.append(train_loss)
             client_weights.append(model.state_dict())

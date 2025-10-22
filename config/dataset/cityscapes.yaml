@@ -22,9 +22,9 @@ train_pipeline:
   - type: Resize
     scale: ${dataset.test_scale}
     keep_ratio: true
-  - type: RandomCrop
-    crop_size: ${dataset.crop_size}
-    cat_max_ratio: 0.75
+  # - type: RandomCrop
+  #   crop_size: ${dataset.crop_size}
+  #   cat_max_ratio: 0.75
   - type: RandomFlip
     prob: 0.5
   - type: PhotoMetricDistortion

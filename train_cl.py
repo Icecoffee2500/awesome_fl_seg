@@ -87,6 +87,7 @@ def main(cfg:DictConfig) -> None:
     today = now.strftime("%m%d-%H%M")
     
     name = "[Resize] train_cl_"
+    name += "no_RandomResize_no_RandomCrop_"
     name += f"{cfg.dataset.name}_crop_size-{cfg.dataset.crop_size}_gpu-{cfg.device_id}"
     name += f"_{today}"
     wdb = wandb
@@ -109,18 +110,18 @@ def main(cfg:DictConfig) -> None:
         pipeline_cfg=cfg.dataset.train_pipeline,
     )
     print(f"len(train_dataset): {len(train_dataset)}")
-    label_id = 26 # car class id
-    # print(f"train_dataset.target_file_paths: {train_dataset.target_file_paths}")
-    mask_paths = [path for path in train_dataset.target_file_paths if path.exists()]
-    # print(f"len(mask_paths): {len(mask_paths)}")
-    indices_with_class = []
-    for i, path in enumerate(mask_paths):
-        mask = np.array(Image.open(path)) # (1024, 2048)
-        if np.any(mask == label_id):
-            indices_with_class.append(i)
+    # label_id = 26 # car class id
+    # # print(f"train_dataset.target_file_paths: {train_dataset.target_file_paths}")
+    # mask_paths = [path for path in train_dataset.target_file_paths if path.exists()]
+    # # print(f"len(mask_paths): {len(mask_paths)}")
+    # indices_with_class = []
+    # for i, path in enumerate(mask_paths):
+    #     mask = np.array(Image.open(path)) # (1024, 2048)
+    #     if np.any(mask == label_id):
+    #         indices_with_class.append(i)
 
-    train_dataset_with_one_class = torch.utils.data.Subset(train_dataset, indices_with_class)
-    print(f"len(train_dataset_with_one_class): {len(train_dataset_with_one_class)}")
+    # train_dataset_with_one_class = torch.utils.data.Subset(train_dataset, indices_with_class)
+    # print(f"len(train_dataset_with_one_class): {len(train_dataset_with_one_class)}")
     
     val_dataset = CityscapesDataset(
         root=cfg.dataset.data_root,
@@ -183,7 +184,8 @@ def main(cfg:DictConfig) -> None:
     perf_dir = ROOT / "performance"
     perf_dir.mkdir(parents=True, exist_ok=True)
     # subdir_name = f"cl_{cfg.dataset.crop_size[0]}x{cfg.dataset.crop_size[1]}_gpu{cfg.device_id}"
-    save_name = f"cl_{cfg.dataset.crop_size[0]}x{cfg.dataset.crop_size[1]}_gpu{cfg.device_id}_best_model.pth"
+    # save_name = f"cl_{cfg.dataset.crop_size[0]}x{cfg.dataset.crop_size[1]}_gpu{cfg.device_id}_best_model.pth"
+    save_name = f"cl_no_RandomResize_no_RandomCrop_best_model.pth"
     # subdir = perf_dir / today / subdir_name
     subdir = perf_dir / today
     subdir.mkdir(parents=True, exist_ok=True)

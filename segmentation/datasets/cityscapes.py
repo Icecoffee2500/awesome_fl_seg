@@ -95,11 +95,24 @@ class CityscapesDataset(Dataset):
             tuple: (image, target) where target is a tuple of all target types if target_type is a list with more
             than one item. Otherwise target is a json object if target_type="polygon", else the image segmentation.
         """
-        image = Image.open(self.image_file_paths[index]).convert('RGB') # 여기서만 사용됨. (Image.open, Image.convert)
-        target = Image.open(self.target_file_paths[index]) # 여기서만 사용됨. (Image.open)
+        # image = Image.open(self.image_file_paths[index]).convert('RGB') # 여기서만 사용됨. (Image.open, Image.convert)
+        # target = Image.open(self.target_file_paths[index]) # 여기서만 사용됨. (Image.open)
 
-        image = np.array(image) # (1024, 2048, 3)
-        target = np.array(target) # (1024, 2048)
+        # image = np.array(image) # (1024, 2048, 3)
+        # target = np.array(target) # (1024, 2048)
+
+        # 파일 읽기 (cv2)
+        img_path = str(self.image_file_paths[index])
+        mask_path = str(self.target_file_paths[index])
+
+        # color image 읽기 (BGR) -> 필요 시 RGB로 바꿔주자
+        image = cv2.imread(img_path, cv2.IMREAD_COLOR)  # shape (H, W, 3), dtype=uint8
+        # convert to RGB if your pipeline expects RGB
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+        # mask는 그레이스케일로 바로 읽기
+        target = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)  # shape (H, W)
+
         results = dict(img=image, gt_seg_map=target)
 
         if self.transform:

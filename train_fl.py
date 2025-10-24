@@ -126,7 +126,8 @@ def main(cfg:DictConfig) -> None:
     dataset_len = len(train_dataset)
 
     # 클라이언트 수
-    num_clients = 3
+    # num_clients = 3
+    num_clients = 6
 
     # 각 클라이언트 dataset 길이 계산
     split_len = dataset_len // num_clients

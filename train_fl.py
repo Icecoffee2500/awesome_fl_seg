@@ -198,7 +198,7 @@ def main(cfg:DictConfig) -> None:
     model_list = []
     optimizer_list = []
     scheduler_list = []
-    for i in range(3):
+    for i in range(num_clients):
         model = copy.deepcopy(global_model)
         model.to(device)
         model_list.append(model)

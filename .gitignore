@@ -23,3 +23,5 @@ predictions_3/
 visualization/
 wandb/
 notebooks/
+
+pyproject.toml

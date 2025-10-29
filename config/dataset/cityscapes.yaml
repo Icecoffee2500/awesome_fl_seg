@@ -1,7 +1,8 @@
 # 데이터셋 설정
 name: cityscapes
 data_root: data/cityscapes/
-crop_size: [1024, 1024]
+# crop_size: [1024, 1024]
+crop_size: [384, 384]
 mode: gtFine
 target_type: semantic
 test_scale: [2048, 1024]
@@ -16,16 +17,16 @@ norm_cfg:
 train_pipeline:
   # - type: LoadImageFromFile
   # - type: LoadAnnotations
-  # - type: RandomResize
-  #   scale: [2048, 1024]
-  #   ratio_range: [0.5, 2.0]
-  #   keep_ratio: true
-  - type: Resize
-    scale: ${dataset.train_scale}
+  - type: RandomResize
+    scale: [2048, 1024]
+    ratio_range: [0.5, 2.0]
     keep_ratio: true
-  # - type: RandomCrop
-  #   crop_size: ${dataset.crop_size}
-  #   cat_max_ratio: 0.75
+  # - type: Resize
+  #   scale: ${dataset.train_scale}
+  #   keep_ratio: true
+  - type: RandomCrop
+    crop_size: ${dataset.crop_size}
+    cat_max_ratio: 0.75
   - type: RandomFlip
     prob: 0.5
   - type: PhotoMetricDistortion

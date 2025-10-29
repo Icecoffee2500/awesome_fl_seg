@@ -62,31 +62,98 @@ def train_one_epoch_fl(model, optimizer, criterion, train_loader, device, curr_e
         if (inputs.shape[2], inputs.shape[3]) != (target_h, target_w):
             inputs = F.interpolate(inputs, size=(target_h, target_w), mode='bilinear', align_corners=False)
             masks = F.interpolate(masks.float(), size=(target_h, target_w), mode='nearest').long()
-        # print(inputs.shape)
-        # print(masks.shape)
-        inputs = inputs.to(device)
-        # masks = masks.to(device)
-        masks = masks.to(device).squeeze(1)  # [B, H, W]
 
+        # -------------------- mrkd --------------------------
+        teacher_output = None
+        total_loss = torch.tensor(0.0, device=device, requires_grad=True)
+        input_list = []
+        mask_list = []
+        input_list.append(inputs)
+        mask_list.append(masks)
+        for res_key in list(target_resolutions.keys())[client_idx+1:]:
+            downsample_h, downsample_w = target_resolutions.get(res_key)
+            downsampled_input = F.interpolate(inputs, size=(downsample_h, downsample_w), mode='bilinear', align_corners=False)
+            downsampled_mask = F.interpolate(masks.float(), size=(downsample_h, downsample_w), mode='nearest').long()
+            input_list.append(downsampled_input)
+            mask_list.append(downsampled_mask)
+            # print(f"downsampled_input.shape: {downsampled_input.shape}")
+            # print(f"downsampled_mask.shape: {downsampled_mask.shape}")
+        
+        # print(f"input list len: {len(input_list)}")
+        # print(f"input list[0] shape: {input_list[0].shape}")
+        input_list = [img.to(device) for img in input_list]
+        mask_list = [gt_mask.to(device).squeeze(1) for gt_mask in mask_list]
+        # print(f"after input list len: {len(input_list)}")
+        # print(f"after input list[0] shape: {input_list[0].shape}")
+        # for idx, (input, gt_mask) in enumerate(zip(input_list, mask_list)):
+        #     print(f"[{client_idx}][{idx}]: input / mask: {input.shape} / {gt_mask.shape}")
+        
         optimizer.zero_grad()
+        for img, gt_mask in zip(input_list, mask_list):
+            # print(f"img shape: {img.shape}")
+            output = model(img)
+            loss_gt = criterion(output, gt_mask)
+            # print(f"output shape: {output.shape}")
+            # print(f"gt_mask shape: {gt_mask.shape}")
 
-        outputs = model(inputs)
+            if teacher_output is not None:
+                # print(f"output shape: {output.shape}")
+                # print(f"teacher_output shape: {teacher_output.shape}")
+                output_interpolated = F.interpolate(
+                    output,
+                    size=(teacher_output.shape[1], teacher_output.shape[2]),
+                    mode='nearest'
+                )
+                # output_interpolated = torch.argmax(output_interpolated, dim=1)
+            
+                loss_kd = criterion(output_interpolated, teacher_output)
 
-        loss = criterion(outputs, masks)
-        loss.backward()
+            alpha = 0.1
+            if teacher_output is not None:
+                loss = loss_gt * alpha + loss_kd * (1 - alpha)
+            else:
+                loss = loss_gt
+
+            # teacher_output = output
+            teacher_output = torch.argmax(output, dim=1)
+            total_loss = total_loss + loss
+
+        total_loss.backward()
         optimizer.step()
-
-        epoch_loss += loss.item()
+        epoch_loss += total_loss.item()
 
         if idx % 50 == 0:
             elapsed = datetime.now() - iter_start_time
             minutes, seconds = divmod(elapsed.total_seconds(), 60)
             # loss 높게 나올 때 어느 class인지 확인하기
-            print(f"Client {client_idx+1} | Epoch [{curr_epoch+1}/{max_epochs}][{idx}/{len(train_loader)}]: "
-                f"Current Loss: {loss.item():.4f} | Elapsed Time: {int(minutes)}m {seconds:.2f}s")
-
-            # print(f"Epoch [{curr_epoch+1}/{max_epochs}][{idx}/{len(train_loader)}]: Loss: {loss.item():.4f} | Time: {datetime.now() - epoch_start_time:.2f}s")
+            print(f"Client {client_idx + 1} | Epoch [{curr_epoch + 1}/{max_epochs}][{idx}/{len(train_loader)}]: "
+                f"Current Loss: {total_loss.item():.4f} | Elapsed Time: {int(minutes)}m {seconds:.2f}s")
             iter_start_time = datetime.now()
+        # ----------------------------------------------------
+
+        # inputs = inputs.to(device)
+        # # masks = masks.to(device)
+        # masks = masks.to(device).squeeze(1)  # [B, H, W]
+
+        # optimizer.zero_grad()
+
+        # outputs = model(inputs)
+
+        # loss = criterion(outputs, masks)
+        # loss.backward()
+        # optimizer.step()
+
+        # epoch_loss += loss.item()
+
+        # if idx % 50 == 0:
+        #     elapsed = datetime.now() - iter_start_time
+        #     minutes, seconds = divmod(elapsed.total_seconds(), 60)
+        #     # loss 높게 나올 때 어느 class인지 확인하기
+        #     print(f"Client {client_idx+1} | Epoch [{curr_epoch+1}/{max_epochs}][{idx}/{len(train_loader)}]: "
+        #         f"Current Loss: {loss.item():.4f} | Elapsed Time: {int(minutes)}m {seconds:.2f}s")
+
+        #     # print(f"Epoch [{curr_epoch+1}/{max_epochs}][{idx}/{len(train_loader)}]: Loss: {loss.item():.4f} | Time: {datetime.now() - epoch_start_time:.2f}s")
+        #     iter_start_time = datetime.now()
     
     return epoch_loss / len(train_loader)
 
@@ -126,8 +193,8 @@ def main(cfg:DictConfig) -> None:
     dataset_len = len(train_dataset)
 
     # 클라이언트 수
-    # num_clients = 3
-    num_clients = 6
+    num_clients = 3
+    # num_clients = 6
 
     # 각 클라이언트 dataset 길이 계산
     split_len = dataset_len // num_clients

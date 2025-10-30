@@ -70,41 +70,50 @@ def train_one_epoch_fl(model, optimizer, criterion, train_loader, device, curr_e
         mask_list = []
         input_list.append(inputs)
         mask_list.append(masks)
-        for res_key in list(target_resolutions.keys())[client_idx+1:]:
-            downsample_h, downsample_w = target_resolutions.get(res_key)
-            downsampled_input = F.interpolate(inputs, size=(downsample_h, downsample_w), mode='bilinear', align_corners=False)
-            downsampled_mask = F.interpolate(masks.float(), size=(downsample_h, downsample_w), mode='nearest').long()
-            input_list.append(downsampled_input)
-            mask_list.append(downsampled_mask)
-            # print(f"downsampled_input.shape: {downsampled_input.shape}")
-            # print(f"downsampled_mask.shape: {downsampled_mask.shape}")
+
+        resolution_vals = list(target_resolutions.values())
+        if resolution_vals and all(v == resolution_vals[0] for v in resolution_vals):
+            # print(f"all values are same! => {resolution_vals[0]}")
+            if resolution_vals[0] == (1024, 1024):
+                downsample_res = [(768, 768), (512, 512)]
+            elif resolution_vals[0] == (512, 512):
+                downsample_res = [(384, 384), (256, 256)]
+            else:
+                print(f"Your resolution {resolution_vals[0]} is not supported")
+            
+            for res in downsample_res:
+                downsample_h, downsample_w = res
+                downsampled_input = F.interpolate(inputs, size=(downsample_h, downsample_w), mode='bilinear', align_corners=False)
+                downsampled_mask = F.interpolate(masks.float(), size=(downsample_h, downsample_w), mode='nearest').long()
+                input_list.append(downsampled_input)
+                mask_list.append(downsampled_mask)
+
+        else:
+            for res_key in list(target_resolutions.keys())[client_idx + 1:]:
+                downsample_h, downsample_w = target_resolutions.get(res_key)
+                downsampled_input = F.interpolate(inputs, size=(downsample_h, downsample_w), mode='bilinear', align_corners=False)
+                downsampled_mask = F.interpolate(masks.float(), size=(downsample_h, downsample_w), mode='nearest').long()
+                input_list.append(downsampled_input)
+                mask_list.append(downsampled_mask)
         
-        # print(f"input list len: {len(input_list)}")
-        # print(f"input list[0] shape: {input_list[0].shape}")
         input_list = [img.to(device) for img in input_list]
         mask_list = [gt_mask.to(device).squeeze(1) for gt_mask in mask_list]
-        # print(f"after input list len: {len(input_list)}")
-        # print(f"after input list[0] shape: {input_list[0].shape}")
-        # for idx, (input, gt_mask) in enumerate(zip(input_list, mask_list)):
-        #     print(f"[{client_idx}][{idx}]: input / mask: {input.shape} / {gt_mask.shape}")
+
+        # for idx, (input, mask) in enumerate(zip(input_list, mask_list)):
+        #     print(f"[Client {client_idx}] input[{idx}]: {input.shape} / mask[{idx}]: {mask.shape}")
+        
         
         optimizer.zero_grad()
         for img, gt_mask in zip(input_list, mask_list):
-            # print(f"img shape: {img.shape}")
             output = model(img)
             loss_gt = criterion(output, gt_mask)
-            # print(f"output shape: {output.shape}")
-            # print(f"gt_mask shape: {gt_mask.shape}")
 
             if teacher_output is not None:
-                # print(f"output shape: {output.shape}")
-                # print(f"teacher_output shape: {teacher_output.shape}")
                 output_interpolated = F.interpolate(
                     output,
                     size=(teacher_output.shape[1], teacher_output.shape[2]),
                     mode='nearest'
                 )
-                # output_interpolated = torch.argmax(output_interpolated, dim=1)
             
                 loss_kd = criterion(output_interpolated, teacher_output)
 
@@ -114,7 +123,6 @@ def train_one_epoch_fl(model, optimizer, criterion, train_loader, device, curr_e
             else:
                 loss = loss_gt
 
-            # teacher_output = output
             teacher_output = torch.argmax(output, dim=1)
             total_loss = total_loss + loss
 

@@ -108,7 +108,7 @@ def train_one_epoch_fl(model, optimizer, criterion, train_loader, device, curr_e
             
                 loss_kd = criterion(output_interpolated, teacher_output)
 
-            alpha = 0.1
+            alpha = 0.9
             if teacher_output is not None:
                 loss = loss_gt * alpha + loss_kd * (1 - alpha)
             else:

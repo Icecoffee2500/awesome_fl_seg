@@ -41,7 +41,7 @@ def aggregate(weights, num_samples=None):
     
     return w_glob_client
 
-def train_one_epoch_fl(model, optimizer, criterion, train_loader, device, curr_epoch, max_epochs, client_idx, target_resolutions):
+def train_one_epoch_fl(model, optimizer, criterion, train_loader, device, curr_epoch, max_epochs, client_idx, target_resolutions, mrkd_alpha):
     model.train()
     epoch_loss = 0.0
     iter_start_time = datetime.now()
@@ -117,9 +117,8 @@ def train_one_epoch_fl(model, optimizer, criterion, train_loader, device, curr_e
             
                 loss_kd = criterion(output_interpolated, teacher_output)
 
-            alpha = 0.9
             if teacher_output is not None:
-                loss = loss_gt * alpha + loss_kd * (1 - alpha)
+                loss = loss_kd * mrkd_alpha + loss_gt * (1 - mrkd_alpha)
             else:
                 loss = loss_gt
 
@@ -174,6 +173,7 @@ def main(cfg:DictConfig) -> None:
     today = now.strftime("%m%d-%H%M")
     
     name = "train_fl_"
+    name += f"mrkd_alpha_{cfg.fl.mrkd_alpha}_"
     name += f"{cfg.fl.target_resolutions}"
     name += f"{cfg.dataset.name}_gpu-{cfg.device_id}"
     name += f"_{today}"
@@ -310,7 +310,7 @@ def main(cfg:DictConfig) -> None:
 
         for i, (model, optimizer, train_loader) in enumerate(zip(model_list, optimizer_list, train_loaders)):
             train_loss = train_one_epoch_fl(
-                model, optimizer, criterion, train_loader, device, epoch, cfg.trainer.epochs, client_idx=i, target_resolutions=cfg.fl.target_resolutions
+                model, optimizer, criterion, train_loader, device, epoch, cfg.trainer.epochs, client_idx=i, target_resolutions=cfg.fl.target_resolutions, mrkd_alpha=cfg.fl.mrkd_alpha
             )
             loss_list.append(train_loss)
             client_weights.append(model.state_dict())

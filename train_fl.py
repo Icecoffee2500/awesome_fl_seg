@@ -106,19 +106,34 @@ def train_one_epoch_fl(model, optimizer, criterion, train_loader, device, curr_e
         optimizer.zero_grad()
         for img, gt_mask in zip(input_list, mask_list):
             output = model(img)
-            loss_gt = criterion(output, gt_mask)
+            # loss_gt = criterion(output, gt_mask)
 
-            if teacher_output is not None:
+            # if teacher_output is not None:
+            #     output_interpolated = F.interpolate(
+            #         output,
+            #         size=(teacher_output.shape[1], teacher_output.shape[2]),
+            #         mode='nearest'
+            #     )
+            
+            #     loss_kd = criterion(output_interpolated, teacher_output)
+
+            # if teacher_output is not None:
+            #     loss = loss_kd * mrkd_alpha + loss_gt * (1 - mrkd_alpha)
+            # else:
+            #     loss = loss_gt
+
+            if teacher_output is None:
+                loss_gt = criterion(output, gt_mask)
+            else:
                 output_interpolated = F.interpolate(
                     output,
                     size=(teacher_output.shape[1], teacher_output.shape[2]),
                     mode='nearest'
                 )
-            
                 loss_kd = criterion(output_interpolated, teacher_output)
 
             if teacher_output is not None:
-                loss = loss_kd * mrkd_alpha + loss_gt * (1 - mrkd_alpha)
+                loss = loss_kd
             else:
                 loss = loss_gt
 
@@ -173,7 +188,7 @@ def main(cfg:DictConfig) -> None:
     today = now.strftime("%m%d-%H%M")
     
     name = "train_fl_"
-    name += f"mrkd_alpha_{cfg.fl.mrkd_alpha}_"
+    name += f"only_mrkd_alpha_{cfg.fl.mrkd_alpha}_"
     name += f"{cfg.fl.target_resolutions}"
     name += f"{cfg.dataset.name}_gpu-{cfg.device_id}"
     name += f"_{today}"
